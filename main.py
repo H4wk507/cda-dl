@@ -31,6 +31,14 @@ def adjust_title(title: str, user_os: str) -> str:
     return title
 
 
+def get_filepath(destination: str, title: str, user_os: str) -> str:
+    if user_os == "Windows":
+        filepath = fr"{destination}\{title}.mp4"
+    else:
+        filepath = fr"{destination}/{title}.mp4"
+    return filepath
+
+
 def download_video(
     url: str, driver: webdriver.Chrome, destination: str, user_os: str
 ) -> None:
@@ -40,10 +48,7 @@ def download_video(
     title = video_soup.find_all("h1")[0].text
     title = adjust_title(title, user_os)
     video_stream = requests.get(download_url["src"], stream=True)
-    if user_os == "Windows":
-        filepath = fr"{destination}\{title}.mp4"
-    elif user_os == "Linux":
-        filepath = fr"{destination}/{title}.mp4"
+    filepath = get_filepath(destination, title, user_os)
     print(f"Downloading {title}.mp4 to {filepath}")
     with open(f"{filepath}", "wb") as f:
         for chunk in video_stream.iter_content(chunk_size=1024 * 1024):
@@ -57,15 +62,13 @@ def download_video(
 # TODO: add progress bar for downloading video
 # TODO: when downloading folder traverse next pages
 # TODO: resume folder download if it was previously cancelled
-# TODO: windows support
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     USER_OS = platform.system()
     CDA_URL = "https://www.cda.pl"
-    url = "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929"
+    # url = "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929"
     # url = "https://www.cda.pl/video/9122600a"
-    # url = input("Enter url for download: ")
-    # C:\Users\Documents
+    url = input("Enter url for download: ")
     destination = input("Enter path to the directory: ")
     destination = path.abspath(path.expanduser(path.expandvars(destination)))
     options = Options()
