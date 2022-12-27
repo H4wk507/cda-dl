@@ -58,33 +58,45 @@ def download_video(
 
 
 # TODO: automatically select the best quality
-# TODO: add flag to specify destination folder
 # TODO: add progress bar for downloading video
 # TODO: when downloading folder traverse next pages
 # TODO: resume folder download if it was previously cancelled
+# TODO: multiple urls
+# url = "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929"
+# url = "https://www.cda.pl/video/9122600a"
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d",
+        "--directory",
+        metavar="\b",
+        type=str,
+        default=".",
+        help="Set destination directory (default '%(default)s')",
+    )
+    parser.add_argument(
+        "url", metavar="URL", type=str, help="URL to video/folder to download"
+    )
+    args = parser.parse_args()
     USER_OS = platform.system()
     CDA_URL = "https://www.cda.pl"
-    # url = "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929"
-    # url = "https://www.cda.pl/video/9122600a"
-    url = input("Enter url for download: ")
-    destination = input("Enter path to the directory: ")
-    destination = path.abspath(path.expanduser(path.expandvars(destination)))
+    url = args.url
+    directory = args.directory
+    directory = path.abspath(path.expanduser(path.expandvars(directory)))
     options = Options()
     options.add_argument("--headless")
     driver = webdriver.Chrome(
         service=ChromeService(ChromeDriverManager().install()), options=options
     )
     if is_video(url):
-        download_video(url, driver, destination, USER_OS)
+        download_video(url, driver, directory, USER_OS)
     elif is_folder(url):
         driver.get(url)
         folder_soup = BeautifulSoup(driver.page_source, "html.parser")
         videos = folder_soup.find_all("a", href=True, class_="thumbnail-link")
         for video in videos:
             video_url = CDA_URL + video["href"]
-            download_video(video_url, driver, destination, USER_OS)
+            download_video(video_url, driver, directory, USER_OS)
     else:
         print("Could not recognize the url. Aborting...")
         exit(1)
