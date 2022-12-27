@@ -2,6 +2,7 @@ import argparse
 import re
 import platform
 from os import path
+from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -48,9 +49,10 @@ def download_video(
     title = video_soup.find_all("h1")[0].text
     title = adjust_title(title, user_os)
     video_stream = requests.get(download_url["src"], stream=True)
+    Path(destination).mkdir(parents=True, exist_ok=True)
     filepath = get_filepath(destination, title, user_os)
     print(f"Downloading {title}.mp4 to {filepath}")
-    with open(f"{filepath}", "wb") as f:
+    with open(filepath, "wb") as f:
         for chunk in video_stream.iter_content(chunk_size=1024 * 1024):
             if chunk:
                 f.write(chunk)
@@ -85,6 +87,7 @@ if __name__ == "__main__":
     directory = path.abspath(path.expanduser(path.expandvars(directory)))
     options = Options()
     options.add_argument("--headless")
+    options.add_argument("--log-level=3")
     driver = webdriver.Chrome(
         service=ChromeService(ChromeDriverManager().install()), options=options
     )
