@@ -1,2 +1,5 @@
 *.log
+*.mp4
 venv/
+.vscode/
+
