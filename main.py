@@ -12,6 +12,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import logging
+from typing import cast
 
 
 os.environ["WDM_LOG"] = str(logging.NOTSET)
@@ -27,7 +28,6 @@ class Downloader:
     url: str
     directory: str
     resolution: str
-    list_resolutions: bool
     chrome_options: Options
     driver: webdriver.Chrome
 
@@ -37,7 +37,9 @@ class Downloader:
             os.path.expanduser(os.path.expandvars(args.directory))
         )
         self.resolution = args.resolution
-        self.list_resolutions = args.list_resolutions
+        if args.list_resolutions:
+            self.list_resolutions_and_exit()
+        self.handle_r_flag()
 
         self.chrome_options = self.get_options()
         self.driver = webdriver.Chrome(
@@ -55,32 +57,46 @@ class Downloader:
         chrome_options.add_argument("--log-level=3")
         return chrome_options
 
-    def main(self) -> None:
-        if self.list_resolutions:
-            self.list_resolutions_and_exit()
-        elif self.is_video():
-            Video(
-                self.url, self.driver, self.directory, self.resolution
-            ).download_video()
-        elif self.is_folder():
-            if self.resolution != "best":
-                exit("-r flag is only available for videos.")
-            Folder(self.url, self.driver, self.directory).download_folder()
-        else:
-            print("Could not recognize the url. Aborting...")
-
     def list_resolutions_and_exit(self) -> None:
         """List available resolutions for a video and exit."""
-        if not self.is_video():
-            print("-R flag is only available for videos.")
-        else:
+        if self.is_folder():
+            exit("-R flag is only available for videos.")
+        elif self.is_video():
             print(f"Available resolutions for {self.url}:")
+            # Webdriver is not needed for listing resolutions.
             resolutions = Video(
-                self.url, self.driver, self.directory, self.resolution
-            ).get_resolutions()
+                self.url,
+                self.directory,
+                self.resolution,
+                cast(webdriver.Chrome, None),
+            ).resolutions
             for res in resolutions:
                 print(res)
-        exit()
+            exit()
+        else:
+            exit("Could not recognize the url. Aborting...")
+
+    def handle_r_flag(self) -> None:
+        if self.is_folder() and self.resolution != "best":
+            exit("-r flag is only available for videos.")
+        elif self.is_video() and self.resolution != "best":
+            # Check if resolution is available without installing the webdriver.
+            Video(
+                self.url,
+                self.directory,
+                self.resolution,
+                cast(webdriver.Chrome, None),
+            )
+
+    def main(self) -> None:
+        if self.is_video():
+            Video(
+                self.url, self.directory, self.resolution, self.driver
+            ).download_video()
+        elif self.is_folder():
+            Folder(self.url, self.directory, self.driver).download_folder()
+        else:
+            exit("Could not recognize the url. Aborting...")
 
     def is_video(self) -> bool:
         """Check if url is a cda video."""
@@ -104,14 +120,14 @@ class Video:
     def __init__(
         self,
         url: str,
-        driver: webdriver.Chrome,
         directory: str,
         resolution: str,
+        driver: webdriver.Chrome,
     ) -> None:
         self.url = url
-        self.driver = driver
         self.directory = directory
         self.resolution = resolution
+        self.driver = driver
         self.video_id = self.get_videoid()
         self.resolutions = self.get_resolutions()
         self.resolution = self.get_adjusted_resolution()
@@ -131,7 +147,7 @@ class Video:
             "div", {"id": f"mediaplayer{self.video_id}"}
         )
         if not isinstance(media_player, Tag):
-            exit("Error while parsing media player")
+            exit(f"Error while parsing media player")
         video_info = json.loads(media_player.attrs["player_data"])
         resolutions = video_info["video"]["qualities"]
         return list(resolutions)
@@ -228,12 +244,12 @@ class Folder:
     def __init__(
         self,
         url: str,
-        driver: webdriver.Chrome,
         directory: str,
+        driver: webdriver.Chrome,
     ) -> None:
         self.url = url
-        self.driver = driver
         self.directory = directory
+        self.driver = driver
 
         self.driver.get(self.url)
         self.folder_soup = BeautifulSoup(
@@ -249,9 +265,13 @@ class Folder:
 
     def download_folder(self) -> None:
         for video in self.videos:
-            video_url = CDA_URL + video["href"][0]
+            href = video["href"]
+            if isinstance(href, str):
+                video_url = CDA_URL + href
+            else:
+                video_url = CDA_URL + href[0]
             Video(
-                video_url, self.driver, self.directory, resolution="best"
+                video_url, self.directory, "best", self.driver
             ).download_video()
 
 
