@@ -1,6 +1,5 @@
 .wdm/
 __pycache__/
-*.log
 *.mp4
 venv/
-.vscode/
+*.swp

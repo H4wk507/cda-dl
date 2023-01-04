@@ -1,8 +1,9 @@
+import sys
 from main import Downloader
 import argparse
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(args: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-d",
@@ -32,10 +33,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "url", metavar="URL", type=str, help="URL to video/folder to download"
     )
-    args = parser.parse_args()
-    return args
+    return parser.parse_args(args)
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    args = parse_args(sys.argv[1:])
     Downloader(args)

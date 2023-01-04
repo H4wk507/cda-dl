@@ -14,10 +14,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 import logging
 from typing import cast
 
-
-os.environ["WDM_LOG"] = str(logging.NOTSET)
-os.environ["WDM_LOCAL"] = "1"
-
 CDA_URL = "https://www.cda.pl"
 USER_OS = platform.system()
 
@@ -41,21 +37,7 @@ class Downloader:
             self.list_resolutions_and_exit()
         self.handle_r_flag()
 
-        self.chrome_options = self.get_options()
-        self.driver = webdriver.Chrome(
-            service=ChromeService(
-                ChromeDriverManager(cache_valid_range=1).install()
-            ),
-            options=self.chrome_options,
-        )
         self.main()
-
-    def get_options(self) -> Options:
-        """Get options for the webdriver."""
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--log-level=3")
-        return chrome_options
 
     def list_resolutions_and_exit(self) -> None:
         """List available resolutions for a video and exit."""
@@ -69,7 +51,7 @@ class Downloader:
                 self.directory,
                 self.resolution,
                 cast(webdriver.Chrome, None),
-            ).resolutions
+            ).get_resolutions()
             for res in resolutions:
                 print(res)
             exit()
@@ -77,23 +59,30 @@ class Downloader:
             exit("Could not recognize the url. Aborting...")
 
     def handle_r_flag(self) -> None:
-        if self.is_folder() and self.resolution != "best":
-            exit("-r flag is only available for videos.")
-        elif self.is_video() and self.resolution != "best":
-            # Check if resolution is available without installing the webdriver.
-            Video(
-                self.url,
-                self.directory,
-                self.resolution,
-                cast(webdriver.Chrome, None),
-            )
+        if self.resolution != "best":
+            if self.is_folder():
+                exit("-r flag is only available for videos.")
+            elif self.is_video():
+                # Check if resolution is available without installing the webdriver.
+                v = Video(
+                    self.url,
+                    self.directory,
+                    self.resolution,
+                    cast(webdriver.Chrome, None),
+                )
+                v.resolutions = v.get_resolutions()
+                v.check_resolution()
+            else:
+                exit("Could not recognize the url. Aborting...")
 
     def main(self) -> None:
         if self.is_video():
+            self.init_webdriver()
             Video(
                 self.url, self.directory, self.resolution, self.driver
             ).download_video()
         elif self.is_folder():
+            self.init_webdriver()
             Folder(self.url, self.directory, self.driver).download_folder()
         else:
             exit("Could not recognize the url. Aborting...")
@@ -107,6 +96,25 @@ class Downloader:
         """Check if url is a cda folder."""
         folder_regex = r"cda\.pl\/.+\/folder\/.+$"
         return re.search(folder_regex, self.url) is not None
+
+    def init_webdriver(self) -> None:
+        """Initialize the webdriver."""
+        os.environ["WDM_LOG"] = str(logging.NOTSET)
+        os.environ["WDM_LOCAL"] = "1"
+        self.chrome_options = self.get_options()
+        self.driver = webdriver.Chrome(
+            service=ChromeService(
+                ChromeDriverManager(cache_valid_range=1).install()
+            ),
+            options=self.chrome_options,
+        )
+
+    def get_options(self) -> Options:
+        """Get options for the webdriver."""
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--log-level=3")
+        return chrome_options
 
 
 class Video:
@@ -129,15 +137,33 @@ class Video:
         self.resolution = resolution
         self.driver = driver
         self.video_id = self.get_videoid()
-        self.resolutions = self.get_resolutions()
-        self.resolution = self.get_adjusted_resolution()
-        self.check_resolution()
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
         video_regex = r"cda\.pl\/video\/(.+)$"
         match = re.search(video_regex, self.url)
         return match.group(1) if match else ""
+
+    def download_video(self) -> None:
+        self.initialize()
+        # Make directory if it does not exist.
+        Path(self.directory).mkdir(parents=True, exist_ok=True)
+        print(f"Downloading {self.filepath} [{self.resolution}]")
+        self.stream_data()
+        print(f"Finished downloading {self.title}.mp4")
+
+    def initialize(self) -> None:
+        """Initialize members required to download the Video."""
+        self.resolutions = self.get_resolutions()
+        self.resolution = self.get_adjusted_resolution()
+        self.check_resolution()
+        self.driver.get(
+            f"https://ebd.cda.pl/1920x1080/{self.video_id}/?wersja={self.resolution}"
+        )
+        self.video_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        self.video_stream = self.get_video_stream()
+        self.title = self.get_title()
+        self.filepath = self.get_filepath()
 
     def get_resolutions(self) -> list[str]:
         """Get available Video resolutions at the url."""
@@ -147,7 +173,7 @@ class Video:
             "div", {"id": f"mediaplayer{self.video_id}"}
         )
         if not isinstance(media_player, Tag):
-            exit(f"Error while parsing media player")
+            exit("Error while parsing media player")
         video_info = json.loads(media_player.attrs["player_data"])
         resolutions = video_info["video"]["qualities"]
         return list(resolutions)
@@ -174,24 +200,6 @@ class Video:
                 f"{self.resolution} resolution is not available for {self.url}"
             )
 
-    def download_video(self) -> None:
-        self.initialize()
-        # Make directory if it does not exist.
-        Path(self.directory).mkdir(parents=True, exist_ok=True)
-        print(f"Downloading {self.filepath} [{self.resolution}]")
-        self.stream_data()
-        print(f"Finished downloading {self.title}.mp4")
-
-    def initialize(self) -> None:
-        """Initialize members required to download the Video."""
-        self.driver.get(
-            f"https://ebd.cda.pl/1920x1080/{self.video_id}/?wersja={self.resolution}"
-        )
-        self.video_soup = BeautifulSoup(self.driver.page_source, "html.parser")
-        self.video_stream = self.get_video_stream()
-        self.title = self.get_title()
-        self.filepath = self.get_filepath()
-
     def get_video_stream(self) -> requests.Response:
         video = self.video_soup.find("video")
         if not isinstance(video, Tag):
@@ -207,9 +215,9 @@ class Video:
         if not isinstance(title_tag, Tag):
             exit("Error while parsing title")
         title = title_tag.text.strip("\n")
-        return self.adjust_title(title)
+        return self.get_adjusted_title(title)
 
-    def adjust_title(self, title: str) -> str:
+    def get_adjusted_title(self, title: str) -> str:
         """Different operating systems do not allow certain
         characters in the filename, so remove them."""
         title = title.replace(" ", "_")
