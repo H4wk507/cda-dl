@@ -41,9 +41,9 @@ class Downloader:
 
     def list_resolutions_and_exit(self) -> None:
         """List available resolutions for a video and exit."""
-        if self.is_folder():
+        if Downloader.is_folder(self.url):
             exit("-R flag is only available for videos.")
-        elif self.is_video():
+        elif Downloader.is_video(self.url):
             print(f"Available resolutions for {self.url}:")
             # Webdriver is not needed for listing resolutions.
             resolutions = Video(
@@ -60,9 +60,9 @@ class Downloader:
 
     def handle_r_flag(self) -> None:
         if self.resolution != "best":
-            if self.is_folder():
+            if Downloader.is_folder(self.url):
                 exit("-r flag is only available for videos.")
-            elif self.is_video():
+            elif Downloader.is_video(self.url):
                 # Check if resolution is available without installing the webdriver.
                 v = Video(
                     self.url,
@@ -76,26 +76,28 @@ class Downloader:
                 exit("Could not recognize the url. Aborting...")
 
     def main(self) -> None:
-        if self.is_video():
+        if Downloader.is_video(self.url):
             self.init_webdriver()
             Video(
                 self.url, self.directory, self.resolution, self.driver
             ).download_video()
-        elif self.is_folder():
+        elif Downloader.is_folder(self.url):
             self.init_webdriver()
             Folder(self.url, self.directory, self.driver).download_folder()
         else:
             exit("Could not recognize the url. Aborting...")
 
-    def is_video(self) -> bool:
+    @staticmethod
+    def is_video(url: str) -> bool:
         """Check if url is a cda video."""
-        video_regex = r"cda\.pl\/video\/.+$"
-        return re.search(video_regex, self.url) is not None
+        video_regex = r"cda\.pl\/video\/.+\/?$"
+        return re.search(video_regex, url) is not None
 
-    def is_folder(self) -> bool:
+    @staticmethod
+    def is_folder(url: str) -> bool:
         """Check if url is a cda folder."""
-        folder_regex = r"cda\.pl\/.+\/folder\/.+$"
-        return re.search(folder_regex, self.url) is not None
+        folder_regex = r"cda\.pl\/.+\/folder\/.+\/?$"
+        return re.search(folder_regex, url) is not None
 
     def init_webdriver(self) -> None:
         """Initialize the webdriver."""
@@ -132,7 +134,7 @@ class Video:
         resolution: str,
         driver: webdriver.Chrome,
     ) -> None:
-        self.url = url
+        self.url = url.rstrip("/")
         self.directory = directory
         self.resolution = resolution
         self.driver = driver
@@ -255,7 +257,7 @@ class Folder:
         directory: str,
         driver: webdriver.Chrome,
     ) -> None:
-        self.url = url
+        self.url = url.rstrip("/")
         self.directory = directory
         self.driver = driver
 
@@ -288,5 +290,4 @@ class Folder:
 # TODO: resume folder download if it was previously cancelled
 # TODO: multiple urls
 # TODO: add async
-# url = "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929"
-# url = "https://www.cda.pl/video/9122600a"
+# check https://requests.readthedocs.io/en/latest/user/advanced/

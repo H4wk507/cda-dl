@@ -1,5 +1,8 @@
 import sys
-from main import Downloader
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from cda_downloader.main import Downloader
 import argparse
 
 
