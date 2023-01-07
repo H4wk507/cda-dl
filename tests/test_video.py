@@ -2,9 +2,8 @@ import sys
 import os
 import pytest  # type: ignore
 from selenium import webdriver
-from typing import cast
+from typing import cast, TypedDict
 import json
-from typing import TypedDict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cda_downloader.main import Video

@@ -28,7 +28,7 @@ class Downloader:
     driver: webdriver.Chrome
 
     def __init__(self, args: argparse.Namespace) -> None:
-        self.url = args.url
+        self.url = args.url.strip()
         self.directory = os.path.abspath(
             os.path.expanduser(os.path.expandvars(args.directory))
         )
@@ -90,14 +90,14 @@ class Downloader:
     @staticmethod
     def is_video(url: str) -> bool:
         """Check if url is a cda video."""
-        video_regex = r"cda\.pl\/video\/.+\/?$"
-        return re.search(video_regex, url) is not None
+        video_regex = r"cda\.pl\/video\/\w+\/?$"
+        return re.search(video_regex, url, re.IGNORECASE) is not None
 
     @staticmethod
     def is_folder(url: str) -> bool:
         """Check if url is a cda folder."""
-        folder_regex = r"cda\.pl\/.+\/folder\/.+\/?$"
-        return re.search(folder_regex, url) is not None
+        folder_regex = r"cda\.pl\/.+\/folder\/\w+\/?\d+?\/?$"
+        return re.search(folder_regex, url, re.IGNORECASE) is not None
 
     def init_webdriver(self) -> None:
         """Initialize the webdriver."""
@@ -143,7 +143,7 @@ class Video:
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
         video_regex = r"cda\.pl\/video\/(.+)$"
-        match = re.search(video_regex, self.url)
+        match = re.search(video_regex, self.url, re.IGNORECASE)
         return match.group(1) if match else ""
 
     def download_video(self) -> None:
@@ -257,23 +257,37 @@ class Folder:
         directory: str,
         driver: webdriver.Chrome,
     ) -> None:
-        self.url = url.rstrip("/")
+        self.url = url
+        self.url = self.get_adjusted_url()
         self.directory = directory
         self.driver = driver
 
-        self.driver.get(self.url)
-        self.folder_soup = BeautifulSoup(
-            self.driver.page_source, "html.parser"
-        )
-        self.videos = self.get_videos()
+    def get_adjusted_url(self) -> str:
+        """If the url has no page specified, add /1/ at the
+        end of it, indicating that we start from the page 1."""
+        if not self.url.endswith("/"):
+            self.url += "/"
+        folder_regex = r"cda\.pl\/.+\/folder\/\w+\/(\d+\/)?$"
+        match = re.search(folder_regex, self.url, re.IGNORECASE)
+        assert match
+        if match.group(1) is None:
+            return self.url + "1/"
+        else:
+            return self.url
 
-    def get_videos(self) -> ResultSet[Tag]:
-        videos = self.folder_soup.find_all(
+    def get_page_soup(self) -> BeautifulSoup:
+        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        return page_soup
+
+    def get_videos_from_current_page(self) -> ResultSet[Tag]:
+        """Get all videos from the current page."""
+        videos = self.page_soup.find_all(
             "a", href=True, class_="thumbnail-link"
         )
         return videos
 
-    def download_folder(self) -> None:
+    def download_videos_from_current_page(self) -> None:
+        """Download all videos from the current page."""
         for video in self.videos:
             href = video["href"]
             if isinstance(href, str):
@@ -284,9 +298,31 @@ class Folder:
                 video_url, self.directory, "best", self.driver
             ).download_video()
 
+    def get_next_page(self) -> str:
+        """Get next page of the folder."""
+        page_number_regex = r"(\d+)\/$"
+        match = re.search(page_number_regex, self.url)
+        assert match
+        page_number = int(match.group(1))
+        return (
+            re.sub(page_number_regex, "", self.url)
+            + str(page_number + 1)
+            + "/"
+        )
+
+    def download_folder(self) -> None:
+        while True:
+            self.driver.get(self.url)
+            self.page_soup = self.get_page_soup()
+            self.videos = self.get_videos_from_current_page()
+            if len(self.videos) == 0:
+                break
+            self.download_videos_from_current_page()
+            self.url = self.get_next_page()
+
 
 # TODO: add progress bar for downloading video
-# TODO: when downloading folder traverse next pages
+# TODO: handle folder of other folders https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny
 # TODO: resume folder download if it was previously cancelled
 # TODO: multiple urls
 # TODO: add async

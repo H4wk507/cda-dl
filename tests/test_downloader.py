@@ -19,6 +19,8 @@ class _Video(TypedDict):
 
 class _Folder(TypedDict):
     url: str
+    adjusted_url: str
+    next_page_url: str
 
 
 class Unknown(TypedDict):

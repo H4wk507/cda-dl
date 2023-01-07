@@ -94,17 +94,40 @@
     ],
     "folders": [
         {
-            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929"
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/3",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/3/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/4/"
 
         },
         {
-            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/"
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/1/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/2/"
         },
         {
-            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/"
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/1/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/2/"
         },
         {
-            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432"
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/1",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/1/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/2/"
+        },
+        {
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/10/"
+        },
+        {
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/99",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/99/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/"
+        },
+        {
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/101/"
         }
     ],
     "unknown": [
