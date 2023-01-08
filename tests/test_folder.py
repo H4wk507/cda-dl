@@ -12,6 +12,7 @@ class _Folder(TypedDict):
     url: str
     adjusted_url: str
     next_page_url: str
+    title: str
 
 
 class _Tests(TypedDict):
@@ -34,6 +35,13 @@ def test_get_adjusted_url() -> None:
         # get_adjusted_url is called in the Folder constructor
         f = Folder(folder["url"], ".", cast(webdriver.Chrome, None))
         assert f.url == folder["adjusted_url"]
+
+
+def test_get_folder_title() -> None:
+    # last 3 folders are incorrect so we can't get title out of them
+    for folder in FOLDERS[:-3]:
+        f = Folder(folder["url"], ".", cast(webdriver.Chrome, None))
+        assert f.get_folder_title() == folder["title"]
 
 
 def test_get_next_page() -> None:

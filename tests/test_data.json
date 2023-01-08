@@ -96,38 +96,45 @@
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/3",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/3/",
-            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/4/"
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/4/",
+            "title": "Pokemon_Indigo_League_Sezon_1"
 
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/1/",
-            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/2/"
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/2/",
+            "title": "Pokemon_filmy_pełnometrażowe"
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/1/",
-            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/2/"
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/2/",
+            "title": "Pokémon_Origins"
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/1",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/1/",
-            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/2/"
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/2/",
+            "title": "Pokemon_Diament_i_Perła_Galaktyczne_Bitwy_Sezon_12"
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
-            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/10/"
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/10/",
+            "title": ""
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/99",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/99/",
-            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/"
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
+            "title": ""
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
-            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/101/"
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/101/",
+            "title": ""
         }
     ],
     "unknown": [

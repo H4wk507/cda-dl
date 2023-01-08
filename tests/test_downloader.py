@@ -21,6 +21,7 @@ class _Folder(TypedDict):
     url: str
     adjusted_url: str
     next_page_url: str
+    title: str
 
 
 class Unknown(TypedDict):
@@ -42,6 +43,29 @@ def get_test_data() -> _Tests:
 
 
 TEST_DATA = get_test_data()
+
+
+"""
+Now user can pass multiple urls to the downloader.
+
+If user passes only folder urls, just iterate over them
+and download like regular folders.
+
+If user passes only videos urls, just iterate over them and
+download like regular videos, apply flags to every url.
+
+If user passed videos urls mixed with folders urls, iterate over them
+and download, apply flags to every url.
+-r 480p video folder - download video, try to download folder but exit cause error
+-r 480p folder video - exit instantly
+"""
+
+
+# def test_lol():
+#    video1 = TEST_DATA["videos"][0]["url"]
+#    video2 = TEST_DATA["videos"][1]["url"]
+#    args = parse_args([video1, video2])
+#    Downloader(args)
 
 
 def test_list_resolutions_and_exit_folder() -> None:

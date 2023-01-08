@@ -34,7 +34,11 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "url", metavar="URL", type=str, help="URL to video/folder to download"
+        "url",
+        metavar="URL",
+        type=str,
+        nargs="+",
+        help="URL(s) to video(s)/folder(s) to download",
     )
     return parser.parse_args(args)
 

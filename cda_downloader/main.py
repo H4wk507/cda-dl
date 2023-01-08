@@ -1,6 +1,5 @@
 import argparse
 import re
-import platform
 import json
 import os
 from pathlib import Path
@@ -15,7 +14,6 @@ import logging
 from typing import cast
 
 CDA_URL = "https://www.cda.pl"
-USER_OS = platform.system()
 
 
 class Downloader:
@@ -28,7 +26,7 @@ class Downloader:
     driver: webdriver.Chrome
 
     def __init__(self, args: argparse.Namespace) -> None:
-        self.url = args.url.strip()
+        self.url = args.url[0].strip()
         self.directory = os.path.abspath(
             os.path.expanduser(os.path.expandvars(args.directory))
         )
@@ -98,6 +96,13 @@ class Downloader:
         """Check if url is a cda folder."""
         folder_regex = r"cda\.pl\/.+\/folder\/\w+\/?\d+?\/?$"
         return re.search(folder_regex, url, re.IGNORECASE) is not None
+
+    @staticmethod
+    def get_adjusted_title(title: str) -> str:
+        """Remove characters that are not allowed in the filename."""
+        title = re.sub(r"[^\w\s-]", "", title)
+        title = re.sub(r"[\s-]+", "_", title).strip("_")
+        return title
 
     def init_webdriver(self) -> None:
         """Initialize the webdriver."""
@@ -217,26 +222,10 @@ class Video:
         if not isinstance(title_tag, Tag):
             exit("Error while parsing title")
         title = title_tag.text.strip("\n")
-        return self.get_adjusted_title(title)
-
-    def get_adjusted_title(self, title: str) -> str:
-        """Different operating systems do not allow certain
-        characters in the filename, so remove them."""
-        title = title.replace(" ", "_")
-        if USER_OS == "Windows":
-            title = re.sub(r'[<>:"\/\\|?*.]', "", title)
-        elif USER_OS == "Darwin":
-            title = re.sub(r"[:\/]", "", title)
-        else:
-            title = re.sub(r"[\/]", "", title)
-        return title
+        return Downloader.get_adjusted_title(title)
 
     def get_filepath(self) -> str:
-        if USER_OS == "Windows":
-            filepath = rf"{self.directory}\{self.title}.mp4"
-        else:
-            filepath = rf"{self.directory}/{self.title}.mp4"
-        return filepath
+        return os.path.join(self.directory, f"{self.title}.mp4")
 
     def stream_data(self) -> None:
         with open(self.filepath, "wb") as f:
@@ -248,6 +237,7 @@ class Video:
 
 
 class Folder:
+    title: str
     folder_soup: BeautifulSoup
     videos: ResultSet[Tag]
 
@@ -274,6 +264,16 @@ class Folder:
             return self.url + "1/"
         else:
             return self.url
+
+    def get_folder_title(self) -> str:
+        response = requests.get(self.url)
+        soup = BeautifulSoup(response.text, "html.parser")
+        try:
+            title_wrapper = soup.find_all("span", class_="folder-one-line")[-1]
+        except IndexError:
+            exit("Error while parsing folder title")
+        title = title_wrapper.find("a", href=True).text
+        return Downloader.get_adjusted_title(title)
 
     def get_page_soup(self) -> BeautifulSoup:
         page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
@@ -311,6 +311,9 @@ class Folder:
         )
 
     def download_folder(self) -> None:
+        self.title = self.get_folder_title()
+        self.directory = os.path.join(self.directory, self.title)
+        Path(self.directory).mkdir(parents=True, exist_ok=True)
         while True:
             self.driver.get(self.url)
             self.page_soup = self.get_page_soup()
@@ -321,9 +324,9 @@ class Folder:
             self.url = self.get_next_page()
 
 
+# TODO: multiple urls
+
 # TODO: add progress bar for downloading video
 # TODO: handle folder of other folders https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny
 # TODO: resume folder download if it was previously cancelled
-# TODO: multiple urls
 # TODO: add async
-# check https://requests.readthedocs.io/en/latest/user/advanced/
