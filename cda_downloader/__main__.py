@@ -1,9 +1,9 @@
 import sys
 import os
+import argparse
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cda_downloader.main import Downloader
-import argparse
 
 
 def parse_args(args: list[str]) -> argparse.Namespace:
@@ -34,7 +34,7 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "url",
+        "urls",
         metavar="URL",
         type=str,
         nargs="+",

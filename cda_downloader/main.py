@@ -19,14 +19,14 @@ CDA_URL = "https://www.cda.pl"
 class Downloader:
     """Class for enclosing all things required to run the downloader."""
 
-    url: str
+    urls: list[str]
     directory: str
     resolution: str
     chrome_options: Options
     driver: webdriver.Chrome
 
     def __init__(self, args: argparse.Namespace) -> None:
-        self.url = args.url[0].strip()
+        self.urls = [url.strip() for url in args.urls]
         self.directory = os.path.abspath(
             os.path.expanduser(os.path.expandvars(args.directory))
         )
@@ -39,51 +39,59 @@ class Downloader:
 
     def list_resolutions_and_exit(self) -> None:
         """List available resolutions for a video and exit."""
-        if Downloader.is_folder(self.url):
-            exit("-R flag is only available for videos.")
-        elif Downloader.is_video(self.url):
-            print(f"Available resolutions for {self.url}:")
-            # Webdriver is not needed for listing resolutions.
-            resolutions = Video(
-                self.url,
-                self.directory,
-                self.resolution,
-                cast(webdriver.Chrome, None),
-            ).get_resolutions()
-            for res in resolutions:
-                print(res)
-            exit()
-        else:
-            exit("Could not recognize the url. Aborting...")
-
-    def handle_r_flag(self) -> None:
-        if self.resolution != "best":
-            if Downloader.is_folder(self.url):
-                exit("-r flag is only available for videos.")
-            elif Downloader.is_video(self.url):
-                # Check if resolution is available without installing the webdriver.
-                v = Video(
-                    self.url,
+        for url in self.urls:
+            if Downloader.is_folder(url):
+                print(
+                    f"-R flag is only available for videos. {url} is a folder!"
+                )
+            elif Downloader.is_video(url):
+                print(f"Available resolutions for {url}:")
+                # Webdriver is not needed for listing resolutions.
+                resolutions = Video(
+                    url,
                     self.directory,
                     self.resolution,
                     cast(webdriver.Chrome, None),
-                )
-                v.resolutions = v.get_resolutions()
-                v.check_resolution()
+                ).get_resolutions()
+                for res in resolutions:
+                    print(res)
             else:
-                exit("Could not recognize the url. Aborting...")
+                print(f"Could not recognize the url: {url}")
+        exit()
+
+    def handle_r_flag(self) -> None:
+        for url in self.urls:
+            if self.resolution != "best":
+                if Downloader.is_folder(url):
+                    exit(
+                        f"-r flag is only available for videos. {url} is a"
+                        " folder!"
+                    )
+                elif Downloader.is_video(url):
+                    # Check if resolution is available without installing the webdriver.
+                    v = Video(
+                        url,
+                        self.directory,
+                        self.resolution,
+                        cast(webdriver.Chrome, None),
+                    )
+                    v.resolutions = v.get_resolutions()
+                    v.check_resolution()
+                else:
+                    exit(f"Could not recognize the url: {url} Aborting...")
 
     def main(self) -> None:
-        if Downloader.is_video(self.url):
-            self.init_webdriver()
-            Video(
-                self.url, self.directory, self.resolution, self.driver
-            ).download_video()
-        elif Downloader.is_folder(self.url):
-            self.init_webdriver()
-            Folder(self.url, self.directory, self.driver).download_folder()
-        else:
-            exit("Could not recognize the url. Aborting...")
+        for url in self.urls:
+            if Downloader.is_video(url):
+                self.init_webdriver()
+                Video(
+                    url, self.directory, self.resolution, self.driver
+                ).download_video()
+            elif Downloader.is_folder(url):
+                self.init_webdriver()
+                Folder(url, self.directory, self.driver).download_folder()
+            else:
+                exit(f"Could not recognize the url: {url} Aborting...")
 
     @staticmethod
     def is_video(url: str) -> bool:
@@ -324,8 +332,8 @@ class Folder:
             self.url = self.get_next_page()
 
 
-# TODO: multiple urls
-
+# TODO: polishify stdout messages and help
+# TODO: write README.md in polish
 # TODO: add progress bar for downloading video
 # TODO: handle folder of other folders https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny
 # TODO: resume folder download if it was previously cancelled
