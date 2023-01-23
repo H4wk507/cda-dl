@@ -48,7 +48,10 @@ TEST_DATA = get_test_data()
 def test_list_resolutions_and_exit_folder() -> None:
     for folder in TEST_DATA["folders"]:
         args = parse_args(["-R", folder["url"]])
-        with pytest.raises(SystemExit, match=""):
+        with pytest.raises(
+            SystemExit,
+            match=f"Flaga -R jest dostępna tylko dla filmów. {folder['url']} jest folderem!",
+        ):
             Downloader(args)
 
 
@@ -62,7 +65,9 @@ def test_list_resolutions_and_exit_video() -> None:
 def test_list_resolutions_and_exit_unknown() -> None:
     for unknown in TEST_DATA["unknown"]:
         args = parse_args(["-R", unknown["url"]])
-        with pytest.raises(SystemExit, match=""):
+        with pytest.raises(
+            SystemExit, match=f"Nie rozpoznano adresu url: {unknown['url']}"
+        ):
             Downloader(args)
 
 
@@ -72,10 +77,8 @@ def test_handle_r_flag_folder() -> None:
         args = parse_args(["-r", res, folder["url"]])
         with pytest.raises(
             SystemExit,
-            match=(
-                f"-r flag is only available for videos. {folder['url']} is a"
-                " folder!"
-            ),
+            match=f"Flaga -r jest dostępna tylko dla filmów. {folder['url']} jest"
+            " folderem!",
         ):
             Downloader(args)
 
@@ -87,10 +90,7 @@ def test_handle_r_flag_video() -> None:
             args = parse_args(["-r", res, video["url"]])
             with pytest.raises(
                 SystemExit,
-                match=(
-                    f"{res} resolution is not available for"
-                    f" {video['url'].strip('/')}"
-                ),
+                match=f"{res} rozdzielczość nie jest dostępna dla {video['url']}",
             ):
                 Downloader(args)
 
@@ -100,8 +100,7 @@ def test_handle_r_flag_unknown() -> None:
         res = "720p"
         args = parse_args(["-r", res, unknown["url"]])
         with pytest.raises(
-            SystemExit,
-            match=f"Could not recognize the url: {unknown['url']} Aborting...",
+            SystemExit, match=f"Nie rozpoznano adresu url: {unknown['url']}"
         ):
             Downloader(args)
 

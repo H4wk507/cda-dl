@@ -41,11 +41,11 @@ class Downloader:
         """List available resolutions for a video and exit."""
         for url in self.urls:
             if Downloader.is_folder(url):
-                print(
-                    f"-R flag is only available for videos. {url} is a folder!"
+                exit(
+                    f"Flaga -R jest dostępna tylko dla filmów. {url} jest folderem!"
                 )
             elif Downloader.is_video(url):
-                print(f"Available resolutions for {url}:")
+                print(f"Dostępne rozdzielczości dla {url}:")
                 # Webdriver is not needed for listing resolutions.
                 resolutions = Video(
                     url,
@@ -56,16 +56,15 @@ class Downloader:
                 for res in resolutions:
                     print(res)
             else:
-                print(f"Could not recognize the url: {url}")
+                exit(f"Nie rozpoznano adresu url: {url}")
         exit()
 
     def handle_r_flag(self) -> None:
         for url in self.urls:
-            if self.resolution != "best":
+            if self.resolution != "najlepsza":
                 if Downloader.is_folder(url):
                     exit(
-                        f"-r flag is only available for videos. {url} is a"
-                        " folder!"
+                        f"Flaga -r jest dostępna tylko dla filmów. {url} jest folderem!"
                     )
                 elif Downloader.is_video(url):
                     # Check if resolution is available without installing the webdriver.
@@ -78,7 +77,7 @@ class Downloader:
                     v.resolutions = v.get_resolutions()
                     v.check_resolution()
                 else:
-                    exit(f"Could not recognize the url: {url} Aborting...")
+                    exit(f"Nie rozpoznano adresu url: {url}")
 
     def main(self) -> None:
         for url in self.urls:
@@ -91,7 +90,7 @@ class Downloader:
                 self.init_webdriver()
                 Folder(url, self.directory, self.driver).download_folder()
             else:
-                exit(f"Could not recognize the url: {url} Aborting...")
+                exit(f"Nie rozpoznano adresu url: {url}")
 
     @staticmethod
     def is_video(url: str) -> bool:
@@ -163,9 +162,9 @@ class Video:
         self.initialize()
         # Make directory if it does not exist.
         Path(self.directory).mkdir(parents=True, exist_ok=True)
-        print(f"Downloading {self.filepath} [{self.resolution}]")
+        print(f"Pobieram {self.filepath} [{self.resolution}]")
         self.stream_data()
-        print(f"Finished downloading {self.title}.mp4")
+        print(f"Skończono pobieranie {self.title}.mp4")
 
     def initialize(self) -> None:
         """Initialize members required to download the Video."""
@@ -188,7 +187,7 @@ class Video:
             "div", {"id": f"mediaplayer{self.video_id}"}
         )
         if not isinstance(media_player, Tag):
-            exit("Error while parsing media player")
+            exit("Error podczas parsowania 'media player'")
         video_info = json.loads(media_player.attrs["player_data"])
         resolutions = video_info["video"]["qualities"]
         return list(resolutions)
@@ -203,7 +202,7 @@ class Video:
         return self.resolution in self.resolutions
 
     def get_adjusted_resolution(self) -> str:
-        if self.resolution == "best":
+        if self.resolution == "najlepsza":
             return self.get_best_resolution()
         else:
             return self.resolution
@@ -212,23 +211,23 @@ class Video:
         """Check if resolution is correct."""
         if not self.is_valid_resolution():
             exit(
-                f"{self.resolution} resolution is not available for {self.url}"
+                f"{self.resolution} rozdzielczość nie jest dostępna dla {self.url}"
             )
 
     def get_video_stream(self) -> requests.Response:
         video = self.video_soup.find("video")
         if not isinstance(video, Tag):
-            exit("Error while parsing video stream")
+            exit("Error podczas parsowania 'video stream'")
         src = video["src"]
         if not isinstance(src, str):
-            exit("Error while parsing video stream")
+            exit("Error podczas parsowania 'video stream'")
         video_stream = requests.get(src, stream=True)
         return video_stream
 
     def get_title(self) -> str:
         title_tag = self.video_soup.find("h1")
         if not isinstance(title_tag, Tag):
-            exit("Error while parsing title")
+            exit("Error podczas parsowania 'title'")
         title = title_tag.text.strip("\n")
         return Downloader.get_adjusted_title(title)
 
@@ -279,7 +278,7 @@ class Folder:
         try:
             title_wrapper = soup.find_all("span", class_="folder-one-line")[-1]
         except IndexError:
-            exit("Error while parsing folder title")
+            exit("Error podczas parsowania 'folder title'")
         title = title_wrapper.find("a", href=True).text
         return Downloader.get_adjusted_title(title)
 
@@ -303,7 +302,7 @@ class Folder:
             else:
                 video_url = CDA_URL + href[0]
             Video(
-                video_url, self.directory, "best", self.driver
+                video_url, self.directory, "najlepsza", self.driver
             ).download_video()
 
     def get_next_page(self) -> str:

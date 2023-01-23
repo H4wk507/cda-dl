@@ -7,38 +7,37 @@ from cda_downloader.main import Downloader
 
 
 def parse_args(args: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-h", "--help", action="help", help=argparse.SUPPRESS)
     parser.add_argument(
         "-d",
         "--directory",
         metavar="\b",
         type=str,
         default=".",
-        help="Set destination directory (default '%(default)s')",
+        help="Ustaw docelowy katalog (domyślnie '%(default)s')",
     )
     parser.add_argument(
         "-R",
         "--resolutions",
         dest="list_resolutions",
         action="store_true",
-        help="List available resolutions (for a video)",
+        help="Wyświetl dostępne rozdzielczości (dla filmu)",
     )
     parser.add_argument(
         "-r",
         "--resolution",
         metavar="\b",
         type=str,
-        default="best",
-        help=(
-            "Download video using specified resolution (default '%(default)s')"
-        ),
+        default="najlepsza",
+        help="Pobierz film w podanej rozdzielczości (domyślnie '%(default)s')",
     )
     parser.add_argument(
         "urls",
         metavar="URL",
         type=str,
         nargs="+",
-        help="URL(s) to video(s)/folder(s) to download",
+        help="URL(y) do filmu(ów)/folder(ów) do pobrania",
     )
     return parser.parse_args(args)
 
