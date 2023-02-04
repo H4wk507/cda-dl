@@ -40,11 +40,7 @@ class Downloader:
     def list_resolutions_and_exit(self) -> None:
         """List available resolutions for a video and exit."""
         for url in self.urls:
-            if Downloader.is_folder(url):
-                exit(
-                    f"Flaga -R jest dostępna tylko dla filmów. {url} jest folderem!"
-                )
-            elif Downloader.is_video(url):
+            if Downloader.is_video(url):
                 print(f"Dostępne rozdzielczości dla {url}:")
                 # Webdriver is not needed for listing resolutions.
                 resolutions = Video(
@@ -55,6 +51,11 @@ class Downloader:
                 ).get_resolutions()
                 for res in resolutions:
                     print(res)
+            elif Downloader.is_folder(url) or Downloader.is_big_folder(url):
+                exit(
+                    f"Flaga -R jest dostępna tylko dla filmów. {url} jest"
+                    " folderem!"
+                )
             else:
                 exit(f"Nie rozpoznano adresu url: {url}")
         exit()
@@ -62,11 +63,7 @@ class Downloader:
     def handle_r_flag(self) -> None:
         for url in self.urls:
             if self.resolution != "najlepsza":
-                if Downloader.is_folder(url):
-                    exit(
-                        f"Flaga -r jest dostępna tylko dla filmów. {url} jest folderem!"
-                    )
-                elif Downloader.is_video(url):
+                if Downloader.is_video(url):
                     # Check if resolution is available without installing the webdriver.
                     v = Video(
                         url,
@@ -76,6 +73,13 @@ class Downloader:
                     )
                     v.resolutions = v.get_resolutions()
                     v.check_resolution()
+                elif Downloader.is_folder(url) or Downloader.is_big_folder(
+                    url
+                ):
+                    exit(
+                        f"Flaga -r jest dostępna tylko dla filmów. {url} jest"
+                        " folderem!"
+                    )
                 else:
                     exit(f"Nie rozpoznano adresu url: {url}")
 
@@ -89,6 +93,11 @@ class Downloader:
             elif Downloader.is_folder(url):
                 self.init_webdriver()
                 Folder(url, self.directory, self.driver).download_folder()
+            elif Downloader.is_big_folder(url):
+                self.init_webdriver()
+                BigFolder(
+                    url, self.directory, self.driver
+                ).download_big_folder()
             else:
                 exit(f"Nie rozpoznano adresu url: {url}")
 
@@ -101,8 +110,16 @@ class Downloader:
     @staticmethod
     def is_folder(url: str) -> bool:
         """Check if url is a cda folder."""
-        folder_regex = r"cda\.pl\/.+\/folder\/\w+\/?\d+?\/?$"
+        folder_regex = r"cda\.pl\/[^\/]+\/folder\/\w+\/?\d+?\/?$"
         return re.search(folder_regex, url, re.IGNORECASE) is not None
+
+    @staticmethod
+    def is_big_folder(url: str) -> bool:
+        """Check if url is a cda big folder."""
+        big_folder_regex = (
+            r"cda\.pl\/(?!video\/)[^\/]+\/(?!folder\/)[^\/]+\/?$"
+        )
+        return re.search(big_folder_regex, url, re.IGNORECASE) is not None
 
     @staticmethod
     def get_adjusted_title(title: str) -> str:
@@ -162,9 +179,9 @@ class Video:
         self.initialize()
         # Make directory if it does not exist.
         Path(self.directory).mkdir(parents=True, exist_ok=True)
-        print(f"Pobieram {self.filepath} [{self.resolution}]")
+        print(f"Pobieram {self.title}.mp4 [{self.resolution}]")
         self.stream_data()
-        print(f"Skończono pobieranie {self.title}.mp4")
+        print(f"Skończono pobieranie {self.title}.mp4 [{self.resolution}]")
 
     def initialize(self) -> None:
         """Initialize members required to download the Video."""
@@ -211,7 +228,8 @@ class Video:
         """Check if resolution is correct."""
         if not self.is_valid_resolution():
             exit(
-                f"{self.resolution} rozdzielczość nie jest dostępna dla {self.url}"
+                f"{self.resolution} rozdzielczość nie jest dostępna dla"
+                f" {self.url}"
             )
 
     def get_video_stream(self) -> requests.Response:
@@ -245,7 +263,6 @@ class Video:
 
 class Folder:
     title: str
-    folder_soup: BeautifulSoup
     videos: ResultSet[Tag]
 
     def __init__(
@@ -282,15 +299,10 @@ class Folder:
         title = title_wrapper.find("a", href=True).text
         return Downloader.get_adjusted_title(title)
 
-    def get_page_soup(self) -> BeautifulSoup:
-        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
-        return page_soup
-
     def get_videos_from_current_page(self) -> ResultSet[Tag]:
         """Get all videos from the current page."""
-        videos = self.page_soup.find_all(
-            "a", href=True, class_="thumbnail-link"
-        )
+        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        videos = page_soup.find_all("a", href=True, class_="thumbnail-link")
         return videos
 
     def download_videos_from_current_page(self) -> None:
@@ -317,23 +329,78 @@ class Folder:
             + "/"
         )
 
-    def download_folder(self) -> None:
+    def make_directory(self) -> None:
+        """Make directory for the folder."""
         self.title = self.get_folder_title()
         self.directory = os.path.join(self.directory, self.title)
         Path(self.directory).mkdir(parents=True, exist_ok=True)
+
+    def download_folder(self) -> None:
+        self.make_directory()
+        print(f"Pobieram folder '{self.title}' ...")
         while True:
             self.driver.get(self.url)
-            self.page_soup = self.get_page_soup()
             self.videos = self.get_videos_from_current_page()
             if len(self.videos) == 0:
                 break
             self.download_videos_from_current_page()
             self.url = self.get_next_page()
+        print(f"Skończono pobieranie folderu '{self.title}'")
 
 
-# TODO: polishify stdout messages and help
+# TODO: cda is retarded so this does not always work
+# https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny == https://www.cda.pl/Pokemon_Odcinki_PL/folder/1178343
+# but second link will be caught by folder regex
+class BigFolder:
+    title: str
+    folders: ResultSet[Tag]
+
+    def __init__(
+        self, url: str, directory: str, driver: webdriver.Chrome
+    ) -> None:
+        self.url = url
+        self.directory = directory
+        self.driver = driver
+
+    def get_big_folder_title(self) -> str:
+        response = requests.get(self.url)
+        soup = BeautifulSoup(response.text, "html.parser")
+        try:
+            title_wrapper = soup.find_all("span", class_="folder-one-line")[-1]
+        except IndexError:
+            exit("Error podczas parsowania 'big folder title'")
+        title = title_wrapper.find("a", href=True).text
+        return Downloader.get_adjusted_title(title)
+
+    def get_subfolders(self) -> ResultSet[Tag]:
+        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        folders = page_soup.find_all("a", href=True, class_="object-folder")
+        return folders
+
+    def make_directory(self) -> None:
+        self.title = self.get_big_folder_title()
+        self.directory = os.path.join(self.directory, self.title)
+        Path(self.directory).mkdir(parents=True, exist_ok=True)
+
+    def download_subfolders(self) -> None:
+        print(f"Pobieram duży folder '{self.title}' ...")
+        for folder in self.folders:
+            href = folder["href"]
+            if isinstance(href, str):
+                folder_url = href
+            else:
+                folder_url = href[0]
+            Folder(folder_url, self.directory, self.driver).download_folder()
+        print(f"Skończono pobieranie dużego folderu '{self.title}'")
+
+    def download_big_folder(self) -> None:
+        self.make_directory()
+        self.driver.get(self.url)
+        self.folders = self.get_subfolders()
+        self.download_subfolders()
+
+
 # TODO: write README.md in polish
 # TODO: add progress bar for downloading video
-# TODO: handle folder of other folders https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny
 # TODO: resume folder download if it was previously cancelled
 # TODO: add async

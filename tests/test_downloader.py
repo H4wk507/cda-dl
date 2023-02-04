@@ -24,6 +24,10 @@ class _Folder(TypedDict):
     title: str
 
 
+class _BigFolder(TypedDict):
+    url: str
+
+
 class Unknown(TypedDict):
     url: str
 
@@ -31,6 +35,7 @@ class Unknown(TypedDict):
 class _Tests(TypedDict):
     videos: list[_Video]
     folders: list[_Folder]
+    big_folders: list[_BigFolder]
     unknown: list[Unknown]
 
 
@@ -50,7 +55,23 @@ def test_list_resolutions_and_exit_folder() -> None:
         args = parse_args(["-R", folder["url"]])
         with pytest.raises(
             SystemExit,
-            match=f"Flaga -R jest dostępna tylko dla filmów. {folder['url']} jest folderem!",
+            match=(
+                "Flaga -R jest dostępna tylko dla filmów."
+                f" {folder['url']} jest folderem!"
+            ),
+        ):
+            Downloader(args)
+
+
+def test_list_resolutions_and_exit_big_folder() -> None:
+    for folder in TEST_DATA["big_folders"]:
+        args = parse_args(["-R", folder["url"]])
+        with pytest.raises(
+            SystemExit,
+            match=(
+                "Flaga -R jest dostępna tylko dla filmów."
+                f" {folder['url']} jest folderem!"
+            ),
         ):
             Downloader(args)
 
@@ -77,8 +98,24 @@ def test_handle_r_flag_folder() -> None:
         args = parse_args(["-r", res, folder["url"]])
         with pytest.raises(
             SystemExit,
-            match=f"Flaga -r jest dostępna tylko dla filmów. {folder['url']} jest"
-            " folderem!",
+            match=(
+                "Flaga -r jest dostępna tylko dla filmów."
+                f" {folder['url']} jest folderem!"
+            ),
+        ):
+            Downloader(args)
+
+
+def test_handle_r_flag_big_folder() -> None:
+    for folder in TEST_DATA["big_folders"]:
+        res = "720p"
+        args = parse_args(["-r", res, folder["url"]])
+        with pytest.raises(
+            SystemExit,
+            match=(
+                "Flaga -r jest dostępna tylko dla filmów."
+                f" {folder['url']} jest folderem!"
+            ),
         ):
             Downloader(args)
 
@@ -90,7 +127,9 @@ def test_handle_r_flag_video() -> None:
             args = parse_args(["-r", res, video["url"]])
             with pytest.raises(
                 SystemExit,
-                match=f"{res} rozdzielczość nie jest dostępna dla {video['url']}",
+                match=(
+                    f"{res} rozdzielczość nie jest dostępna dla {video['url']}"
+                ),
             ):
                 Downloader(args)
 
@@ -112,6 +151,9 @@ def test_is_video() -> None:
     for folder in TEST_DATA["folders"]:
         assert Downloader.is_video(folder["url"]) == False
 
+    for big_folder in TEST_DATA["big_folders"]:
+        assert Downloader.is_video(big_folder["url"]) == False
+
     for unknown in TEST_DATA["unknown"]:
         assert Downloader.is_video(unknown["url"]) == False
 
@@ -123,5 +165,22 @@ def test_is_folder() -> None:
     for folder in TEST_DATA["folders"]:
         assert Downloader.is_folder(folder["url"]) == True
 
+    for big_folder in TEST_DATA["big_folders"]:
+        assert Downloader.is_folder(big_folder["url"]) == False
+
     for unknown in TEST_DATA["unknown"]:
         assert Downloader.is_folder(unknown["url"]) == False
+
+
+def test_is_big_folder() -> None:
+    for video in TEST_DATA["videos"]:
+        assert Downloader.is_big_folder(video["url"]) == False
+
+    for folder in TEST_DATA["folders"]:
+        assert Downloader.is_big_folder(folder["url"]) == False
+
+    for big_folder in TEST_DATA["big_folders"]:
+        assert Downloader.is_big_folder(big_folder["url"]) == True
+
+    for unknown in TEST_DATA["unknown"]:
+        assert Downloader.is_big_folder(unknown["url"]) == False

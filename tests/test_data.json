@@ -137,6 +137,14 @@
             "title": ""
         }
     ],
+    "big_folders": [
+        {
+            "url": "https://www.cda.pl/safirot/folder-glowny"
+        },
+        {
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/"
+        }
+    ],
     "unknown": [
         {
             "url": "https://www.google.com"
