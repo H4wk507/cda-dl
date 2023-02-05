@@ -335,22 +335,32 @@ class Folder:
         self.directory = os.path.join(self.directory, self.title)
         Path(self.directory).mkdir(parents=True, exist_ok=True)
 
+    def is_big_folder(self) -> bool:
+        """Additional check."""
+        self.driver.get(self.url)
+        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        folders = page_soup.find_all("a", href=True, class_="object-folder")
+        return len(folders) > 0
+
     def download_folder(self) -> None:
-        self.make_directory()
-        print(f"Pobieram folder '{self.title}' ...")
-        while True:
-            self.driver.get(self.url)
-            self.videos = self.get_videos_from_current_page()
-            if len(self.videos) == 0:
-                break
-            self.download_videos_from_current_page()
-            self.url = self.get_next_page()
-        print(f"Skończono pobieranie folderu '{self.title}'")
+        if self.is_big_folder():
+            BigFolder(
+                self.url, self.directory, self.driver
+            ).download_big_folder()
+        else:
+            self.make_directory()
+            print(f"Pobieram folder '{self.title}' ...")
+            while True:
+                self.driver.get(self.url)
+                self.videos = self.get_videos_from_current_page()
+                if len(self.videos) == 0:
+                    break
+                self.download_videos_from_current_page()
+                self.url = self.get_next_page()
+            print(f"Skończono pobieranie folderu '{self.title}'")
 
 
-# TODO: cda is retarded so this does not always work
-# https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny == https://www.cda.pl/Pokemon_Odcinki_PL/folder/1178343
-# but second link will be caught by folder regex
+# TODO: refactor this mess, maybe this class is not even needed
 class BigFolder:
     title: str
     folders: ResultSet[Tag]
@@ -377,13 +387,30 @@ class BigFolder:
         folders = page_soup.find_all("a", href=True, class_="object-folder")
         return folders
 
+    def get_videos_from_current_page(self) -> ResultSet[Tag]:
+        """Get all videos from the current page."""
+        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        videos = page_soup.find_all("a", href=True, class_="thumbnail-link")
+        return videos
+
     def make_directory(self) -> None:
         self.title = self.get_big_folder_title()
         self.directory = os.path.join(self.directory, self.title)
         Path(self.directory).mkdir(parents=True, exist_ok=True)
 
+    def download_videos(self) -> None:
+        """Download all videos from the current page."""
+        for video in self.videos:
+            href = video["href"]
+            if isinstance(href, str):
+                video_url = CDA_URL + href
+            else:
+                video_url = CDA_URL + href[0]
+            Video(
+                video_url, self.directory, "najlepsza", self.driver
+            ).download_video()
+
     def download_subfolders(self) -> None:
-        print(f"Pobieram duży folder '{self.title}' ...")
         for folder in self.folders:
             href = folder["href"]
             if isinstance(href, str):
@@ -391,13 +418,17 @@ class BigFolder:
             else:
                 folder_url = href[0]
             Folder(folder_url, self.directory, self.driver).download_folder()
-        print(f"Skończono pobieranie dużego folderu '{self.title}'")
 
     def download_big_folder(self) -> None:
         self.make_directory()
         self.driver.get(self.url)
+        print(f"Pobieram duży folder '{self.title}' ...")
+        self.videos = self.get_videos_from_current_page()
+        self.download_videos()
+        self.driver.get(self.url)
         self.folders = self.get_subfolders()
         self.download_subfolders()
+        print(f"Skończono pobieranie dużego folderu '{self.title}'")
 
 
 # TODO: write README.md in polish
