@@ -22,7 +22,7 @@ class _Tests(TypedDict):
 def get_test_data() -> list[_Folder]:
     folder_path = os.path.dirname(os.path.abspath(__file__))
     json_file = os.path.join(folder_path, "test_data.json")
-    with open(json_file) as f:
+    with open(json_file, "r") as f:
         dat: _Tests = json.load(f)
     return dat["folders"]
 

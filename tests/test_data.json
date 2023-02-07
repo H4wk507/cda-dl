@@ -119,6 +119,18 @@
             "title": "Pokemon_Diament_i_Perła_Galaktyczne_Bitwy_Sezon_12"
         },
         {
+            "url": "https://www.cda.pl/safirot/folder-glowny",
+            "adjusted_url": "https://www.cda.pl/safirot/folder-glowny/1/",
+            "next_page_url": "https://www.cda.pl/safirot/folder-glowny/2/",
+            "title": "Folder_główny"
+        },
+        {
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/1/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/2/",
+            "title": "Folder_główny"
+        },
+        {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/10/",
@@ -135,14 +147,6 @@
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/101/",
             "title": ""
-        }
-    ],
-    "big_folders": [
-        {
-            "url": "https://www.cda.pl/safirot/folder-glowny"
-        },
-        {
-            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/"
         }
     ],
     "unknown": [
