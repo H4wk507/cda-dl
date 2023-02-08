@@ -41,12 +41,14 @@ def test_get_videoid() -> None:
 def test_get_resolutions() -> None:
     for video in VIDEOS:
         v = Video(video["url"], ".", "najlepsza", cast(webdriver.Chrome, None))
+        v.video_id = v.get_videoid()
         assert v.get_resolutions() == video["resolutions"]
 
 
 def test_get_adjusted_resolution() -> None:
     for video in VIDEOS:
         v = Video(video["url"], ".", "najlepsza", cast(webdriver.Chrome, None))
+        v.video_id = v.get_videoid()
         v.resolutions = v.get_resolutions()
         assert v.get_adjusted_resolution() == video["adjusted_resolution"]
 
@@ -55,6 +57,7 @@ def test_check_resolution() -> None:
     # Slice cause too many requests
     for video in VIDEOS[:2]:
         v = Video(video["url"], ".", "najlepsza", cast(webdriver.Chrome, None))
+        v.video_id = v.get_videoid()
         v.resolutions = v.get_resolutions()
         for res in video["invalid_resolutions"]:
             v.resolution = res

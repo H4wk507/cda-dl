@@ -15,36 +15,8 @@
             "invalid_resolutions": ["144p", "1080p"]
         },
         {
-            "url": "https://www.cda.pl/video/54771810",
-            "videoid": "54771810",
-            "resolutions": ["480p"],
-            "adjusted_resolution": "480p",
-            "invalid_resolutions": ["144p", "360p", "720p", "1080p"]
-        },
-        {
-            "url": "https://www.cda.pl/video/54925685",
-            "videoid": "54925685",
-            "resolutions": ["360p", "480p", "720p"],
-            "adjusted_resolution": "720p",
-            "invalid_resolutions": ["144p", "1080p"]
-        },
-        {
-            "url": "https://www.cda.pl/video/54970643",
-            "videoid": "54970643",
-            "resolutions": ["360p", "480p", "720p"],
-            "adjusted_resolution": "720p",
-            "invalid_resolutions": ["144p", "1080p"]
-        },
-        {
             "url": "https://www.cda.pl/video/551049f0",
             "videoid": "551049f0",
-            "resolutions": ["360p", "480p", "720p"],
-            "adjusted_resolution": "720p",
-            "invalid_resolutions": ["144p", "1080p"]
-        },
-        {
-            "url": "https://www.cda.pl/video/55132216",
-            "videoid": "55132216",
             "resolutions": ["360p", "480p", "720p"],
             "adjusted_resolution": "720p",
             "invalid_resolutions": ["144p", "1080p"]
@@ -62,13 +34,6 @@
             "resolutions": ["480p"],
             "adjusted_resolution": "480p",
             "invalid_resolutions": ["144p", "360p", "720p", "1080p"]
-        },
-        {
-            "url": "https://www.cda.pl/video/7266579d",
-            "videoid": "7266579d",
-            "resolutions": ["360p", "480p", "720p"],
-            "adjusted_resolution": "720p",
-            "invalid_resolutions": ["144p", "1080p"]
         },
         {
             "url": "https://www.cda.pl/video/72029575",
@@ -126,6 +91,12 @@
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/",
+            "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/1/",
+            "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/2/",
+            "title": "Folder_główny"
+        },
+        {
+            "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/1/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/1/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/2/",
             "title": "Folder_główny"

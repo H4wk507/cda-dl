@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
-from bs4.element import ResultSet, Tag
+from bs4.element import Tag
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
@@ -13,12 +13,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 import logging
 from typing import cast
 
-CDA_URL = "https://www.cda.pl"
-
 
 class Downloader:
-    """Class for enclosing all things required to run the downloader."""
-
     urls: list[str]
     directory: str
     resolution: str
@@ -43,12 +39,14 @@ class Downloader:
             if Downloader.is_video(url):
                 print(f"Dostępne rozdzielczości dla {url}:")
                 # Webdriver is not needed for listing resolutions.
-                resolutions = Video(
+                v = Video(
                     url,
                     self.directory,
                     self.resolution,
                     cast(webdriver.Chrome, None),
-                ).get_resolutions()
+                )
+                v.video_id = v.get_videoid()
+                resolutions = v.get_resolutions()
                 for res in resolutions:
                     print(res)
             elif Downloader.is_folder(url):
@@ -71,6 +69,7 @@ class Downloader:
                         self.resolution,
                         cast(webdriver.Chrome, None),
                     )
+                    v.video_id = v.get_videoid()
                     v.resolutions = v.get_resolutions()
                     v.check_resolution()
                 elif Downloader.is_folder(url):
@@ -98,21 +97,24 @@ class Downloader:
     def is_video(url: str) -> bool:
         """Check if url is a cda video."""
         video_regex = r"cda\.pl\/video\/\w+\/?$"
-        return re.search(video_regex, url, re.IGNORECASE) is not None
+        match = re.search(video_regex, url, re.IGNORECASE)
+        return match is not None
 
     @staticmethod
     def is_folder(url: str) -> bool:
         """Check if url is a cda folder."""
-        folder_regex1 = r"cda\.pl\/[^\/]+\/folder\/\w+\/?\d+?\/?$"
-        folder_regex2 = r"cda\.pl\/(?!video\/)[^\/]+\/(?!folder\/)[^\/]+\/?$"
-        return (
-            re.search(folder_regex1, url, re.IGNORECASE) is not None
-            or re.search(folder_regex2, url, re.IGNORECASE) is not None
+        folder_regex1 = r"cda\.pl\/[^\/]+\/folder\/\w+\/?\d*?\/?$"
+        folder_regex2 = (
+            r"cda\.pl\/(?!video\/)[^\/]+\/(?!folder\/)[^\/]+\/?\d*?\/?$"
         )
+        match1 = re.search(folder_regex1, url, re.IGNORECASE)
+        match2 = re.search(folder_regex2, url, re.IGNORECASE)
+        return match1 is not None or match2 is not None
 
     @staticmethod
     def get_adjusted_title(title: str) -> str:
-        """Remove characters that are not allowed in the filename."""
+        """Remove characters that are not allowed in the filename
+        and convert spaces to underscores."""
         title = re.sub(r"[^\w\s-]", "", title)
         title = re.sub(r"[\s-]+", "_", title).strip("_")
         return title
@@ -152,21 +154,13 @@ class Video:
         resolution: str,
         driver: webdriver.Chrome,
     ) -> None:
-        self.url = url.rstrip("/")
+        self.url = url
         self.directory = directory
         self.resolution = resolution
         self.driver = driver
-        self.video_id = self.get_videoid()
-
-    def get_videoid(self) -> str:
-        """Get videoid from Video url."""
-        video_regex = r"cda\.pl\/video\/(.+)$"
-        match = re.search(video_regex, self.url, re.IGNORECASE)
-        return match.group(1) if match else ""
 
     def download_video(self) -> None:
         self.initialize()
-        # Make directory if it does not exist.
         Path(self.directory).mkdir(parents=True, exist_ok=True)
         print(f"Pobieram {self.title}.mp4 [{self.resolution}]")
         self.stream_data()
@@ -174,6 +168,7 @@ class Video:
 
     def initialize(self) -> None:
         """Initialize members required to download the Video."""
+        self.video_id = self.get_videoid()
         self.resolutions = self.get_resolutions()
         self.resolution = self.get_adjusted_resolution()
         self.check_resolution()
@@ -184,6 +179,13 @@ class Video:
         self.video_stream = self.get_video_stream()
         self.title = self.get_title()
         self.filepath = self.get_filepath()
+
+    def get_videoid(self) -> str:
+        """Get videoid from Video url."""
+        video_regex = r"cda\.pl\/video\/(\w+)\/?$"
+        match = re.search(video_regex, self.url, re.IGNORECASE)
+        assert match
+        return match.group(1)
 
     def get_resolutions(self) -> list[str]:
         """Get available Video resolutions at the url."""
@@ -252,7 +254,8 @@ class Video:
 
 class Folder:
     title: str
-    videos: ResultSet[Tag]
+    videos: list[Video]
+    folders: list["Folder"]
 
     def __init__(
         self, url: str, directory: str, driver: webdriver.Chrome
@@ -267,12 +270,37 @@ class Folder:
         end of it, indicating that we start from the page 1."""
         if not self.url.endswith("/"):
             self.url += "/"
-        folder_regex = r"cda\.pl\/[^\/]+\/folder\/\w+\/(\d+\/)?$"
-        match = re.search(folder_regex, self.url, re.IGNORECASE)
-        if match is None or match.group(1) is None:
-            return self.url + "1/"
-        else:
+        folder_regex1 = r"cda\.pl\/[^\/]+\/folder\/\w+\/(\d+\/)?$"
+        folder_regex2 = (
+            r"cda\.pl\/(?!video\/)[^\/]+\/(?!folder\/)[^\/]+\/(\d+\/)?$"
+        )
+        match1 = re.search(folder_regex1, self.url, re.IGNORECASE)
+        match2 = re.search(folder_regex2, self.url, re.IGNORECASE)
+        if match1 and match1.group(1) or match2 and match2.group(1):
             return self.url
+        else:
+            return self.url + "1/"
+
+    def download_folder(self) -> None:
+        """Recursively download all videos and subfolders of the folder."""
+        self.make_directory()
+        print(f"Pobieram folder '{self.title}' ...")
+        self.driver.get(self.url)
+        self.folders = self.get_subfolders()
+        self.download_subfolders()
+        self.download_videos_from_folder()
+        print(f"Skończono pobieranie folderu '{self.title}'")
+
+    def download_subfolders(self) -> None:
+        """Download all subfolders of the folder."""
+        for folder in self.folders:
+            folder.download_folder()
+
+    def make_directory(self) -> None:
+        """Make directory for the folder."""
+        self.title = self.get_folder_title()
+        self.directory = os.path.join(self.directory, self.title)
+        Path(self.directory).mkdir(parents=True, exist_ok=True)
 
     def get_folder_title(self) -> str:
         response = requests.get(self.url)
@@ -284,39 +312,49 @@ class Folder:
         title = title_wrapper.find("a", href=True).text
         return Downloader.get_adjusted_title(title)
 
-    def get_subfolders(self) -> ResultSet[Tag]:
+    def get_subfolders(self) -> list["Folder"]:
         """Get subfolders of the folder."""
         page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
-        folders = page_soup.find_all("a", href=True, class_="object-folder")
+        folders_soup = page_soup.find_all(
+            "a", href=True, class_="object-folder"
+        )
+        folders = [
+            Folder(folder["href"], self.directory, self.driver)
+            for folder in folders_soup
+        ]
         return folders
 
-    def download_subfolders(self) -> None:
-        """Download all subfolders of the folder."""
-        for folder in self.folders:
-            href = folder["href"]
-            if isinstance(href, str):
-                folder_url = href
-            else:
-                folder_url = href[0]
-            Folder(folder_url, self.directory, self.driver).download_folder()
+    def download_videos_from_folder(self) -> None:
+        """Download all videos from the folder."""
+        while True:
+            self.driver.get(self.url)
+            self.videos = self.get_videos_from_current_page()
+            if len(self.videos) == 0:
+                break
+            self.download_videos_from_current_page()
+            self.url = self.get_next_page()
 
-    def get_videos_from_current_page(self) -> ResultSet[Tag]:
+    def get_videos_from_current_page(self) -> list[Video]:
         """Get all videos from the current page."""
         page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
-        videos = page_soup.find_all("a", href=True, class_="thumbnail-link")
+        videos_soup = page_soup.find_all(
+            "a", href=True, class_="thumbnail-link"
+        )
+        videos = [
+            Video(
+                "https://www.cda.pl" + video["href"],
+                self.directory,
+                "najlepsza",
+                self.driver,
+            )
+            for video in videos_soup
+        ]
         return videos
 
-    def download_videos(self) -> None:
+    def download_videos_from_current_page(self) -> None:
         """Download all videos from the current page."""
         for video in self.videos:
-            href = video["href"]
-            if isinstance(href, str):
-                video_url = CDA_URL + href
-            else:
-                video_url = CDA_URL + href[0]
-            Video(
-                video_url, self.directory, "najlepsza", self.driver
-            ).download_video()
+            video.download_video()
 
     def get_next_page(self) -> str:
         """Get next page of the folder."""
@@ -329,39 +367,6 @@ class Folder:
             + str(page_number + 1)
             + "/"
         )
-
-    def make_directory(self) -> None:
-        """Make directory for the folder."""
-        self.title = self.get_folder_title()
-        self.directory = os.path.join(self.directory, self.title)
-        Path(self.directory).mkdir(parents=True, exist_ok=True)
-
-    def has_subfolders(self) -> bool:
-        """Check if the folder has subfolders."""
-        self.driver.get(self.url)
-        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
-        folders = page_soup.find_all("a", href=True, class_="object-folder")
-        return len(folders) > 0
-
-    def download_folder(self) -> None:
-        self.make_directory()
-        print(f"Pobieram folder '{self.title}' ...")
-        if self.has_subfolders():
-            self.driver.get(self.url)
-            self.videos = self.get_videos_from_current_page()
-            self.download_videos()
-            self.driver.get(self.url)
-            self.folders = self.get_subfolders()
-            self.download_subfolders()
-        else:
-            while True:
-                self.driver.get(self.url)
-                self.videos = self.get_videos_from_current_page()
-                if len(self.videos) == 0:
-                    break
-                self.download_videos()
-                self.url = self.get_next_page()
-        print(f"Skończono pobieranie folderu '{self.title}'")
 
 
 # TODO: write README.md in polish
