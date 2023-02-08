@@ -12,6 +12,7 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import logging
 from typing import cast
+from tqdm import tqdm
 
 
 class Downloader:
@@ -144,6 +145,7 @@ class Video:
     resolutions: list[str]
     video_soup: BeautifulSoup
     video_stream: requests.Response
+    size: int
     title: str
     filepath: str
 
@@ -162,9 +164,7 @@ class Video:
     def download_video(self) -> None:
         self.initialize()
         Path(self.directory).mkdir(parents=True, exist_ok=True)
-        print(f"Pobieram {self.title}.mp4 [{self.resolution}]")
         self.stream_data()
-        print(f"Skończono pobieranie {self.title}.mp4 [{self.resolution}]")
 
     def initialize(self) -> None:
         """Initialize members required to download the Video."""
@@ -177,6 +177,7 @@ class Video:
         )
         self.video_soup = BeautifulSoup(self.driver.page_source, "html.parser")
         self.video_stream = self.get_video_stream()
+        self.size = int(self.video_stream.headers.get("content-length", 0))
         self.title = self.get_title()
         self.filepath = self.get_filepath()
 
@@ -233,6 +234,10 @@ class Video:
         video_stream = requests.get(src, stream=True)
         return video_stream
 
+    def get_size(self) -> int:
+        """Get Video size in KiB."""
+        return int(self.video_stream.headers.get("content-length", 0))
+
     def get_title(self) -> str:
         title_tag = self.video_soup.find("h1")
         if not isinstance(title_tag, Tag):
@@ -244,12 +249,18 @@ class Video:
         return os.path.join(self.directory, f"{self.title}.mp4")
 
     def stream_data(self) -> None:
+        block_size = 1024
+        file = f"{self.title}.mp4 [{self.resolution}]"
         with open(self.filepath, "wb") as f:
-            for chunk in self.video_stream.iter_content(
-                chunk_size=1024 * 1024
-            ):
-                if chunk is not None:
-                    f.write(chunk)
+            with tqdm(
+                total=self.size, unit="iB", unit_scale=True, desc=file
+            ) as pbar:
+                for chunk in self.video_stream.iter_content(
+                    chunk_size=block_size * block_size
+                ):
+                    if chunk is not None:
+                        f.write(chunk)
+                        pbar.update(len(chunk))
 
 
 class Folder:
@@ -284,16 +295,17 @@ class Folder:
     def download_folder(self) -> None:
         """Recursively download all videos and subfolders of the folder."""
         self.make_directory()
-        print(f"Pobieram folder '{self.title}' ...")
         self.driver.get(self.url)
         self.folders = self.get_subfolders()
-        self.download_subfolders()
+        if len(self.folders) > 0:
+            self.download_subfolders()
         self.download_videos_from_folder()
-        print(f"Skończono pobieranie folderu '{self.title}'")
 
     def download_subfolders(self) -> None:
         """Download all subfolders of the folder."""
-        for folder in self.folders:
+        for folder in tqdm(
+            self.folders, total=len(self.folders), desc=self.title
+        ):
             folder.download_folder()
 
     def make_directory(self) -> None:
@@ -326,6 +338,9 @@ class Folder:
 
     def download_videos_from_folder(self) -> None:
         """Download all videos from the folder."""
+        # TODO: add progress bar here, but first we have to
+        # get the number of videos in the folder
+        # which can take too much requests, test it
         while True:
             self.driver.get(self.url)
             self.videos = self.get_videos_from_current_page()
