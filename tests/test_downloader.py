@@ -22,6 +22,8 @@ class _Folder(TypedDict):
     adjusted_url: str
     next_page_url: str
     title: str
+    nsubfolders: int
+    nvideos: int
 
 
 class Unknown(TypedDict):

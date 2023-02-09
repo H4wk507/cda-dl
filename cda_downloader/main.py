@@ -88,9 +88,11 @@ class Downloader:
                 Video(
                     url, self.directory, self.resolution, self.driver
                 ).download_video()
+                print("Skończono robotę.")
             elif Downloader.is_folder(url):
                 self.init_webdriver()
                 Folder(url, self.directory, self.driver).download_folder()
+                print("Skończono robotę.")
             else:
                 exit(f"Nie rozpoznano adresu url: {url}")
 
@@ -253,7 +255,11 @@ class Video:
         file = f"{self.title}.mp4 [{self.resolution}]"
         with open(self.filepath, "wb") as f:
             with tqdm(
-                total=self.size, unit="iB", unit_scale=True, desc=file
+                total=self.size,
+                unit="iB",
+                unit_scale=True,
+                desc=file,
+                leave=False,
             ) as pbar:
                 for chunk in self.video_stream.iter_content(
                     chunk_size=block_size * block_size
@@ -295,16 +301,17 @@ class Folder:
     def download_folder(self) -> None:
         """Recursively download all videos and subfolders of the folder."""
         self.make_directory()
-        self.driver.get(self.url)
         self.folders = self.get_subfolders()
         if len(self.folders) > 0:
             self.download_subfolders()
-        self.download_videos_from_folder()
+        self.videos = self.get_videos_from_folder()
+        if len(self.videos) > 0:
+            self.download_videos_from_folder()
 
     def download_subfolders(self) -> None:
         """Download all subfolders of the folder."""
         for folder in tqdm(
-            self.folders, total=len(self.folders), desc=self.title
+            self.folders, total=len(self.folders), desc=self.title, leave=False
         ):
             folder.download_folder()
 
@@ -326,6 +333,7 @@ class Folder:
 
     def get_subfolders(self) -> list["Folder"]:
         """Get subfolders of the folder."""
+        self.driver.get(self.url)
         page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
         folders_soup = page_soup.find_all(
             "a", href=True, class_="object-folder"
@@ -338,20 +346,26 @@ class Folder:
 
     def download_videos_from_folder(self) -> None:
         """Download all videos from the folder."""
-        # TODO: add progress bar here, but first we have to
-        # get the number of videos in the folder
-        # which can take too much requests, test it
+        for video in tqdm(
+            self.videos, total=len(self.videos), desc=self.title, leave=False
+        ):
+            video.download_video()
+
+    def get_videos_from_folder(self) -> list[Video]:
+        """Get all videos from the folder."""
+        all_videos: list[Video] = []
         while True:
-            self.driver.get(self.url)
-            self.videos = self.get_videos_from_current_page()
-            if len(self.videos) == 0:
+            videos = self.get_videos_from_current_page()
+            if len(videos) == 0:
                 break
-            self.download_videos_from_current_page()
+            all_videos.extend(videos)
             self.url = self.get_next_page()
+        return all_videos
 
     def get_videos_from_current_page(self) -> list[Video]:
         """Get all videos from the current page."""
-        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        response = requests.get(self.url)
+        page_soup = BeautifulSoup(response.content, "html.parser")
         videos_soup = page_soup.find_all(
             "a", href=True, class_="thumbnail-link"
         )
@@ -365,11 +379,6 @@ class Folder:
             for video in videos_soup
         ]
         return videos
-
-    def download_videos_from_current_page(self) -> None:
-        """Download all videos from the current page."""
-        for video in self.videos:
-            video.download_video()
 
     def get_next_page(self) -> str:
         """Get next page of the folder."""
@@ -385,6 +394,5 @@ class Folder:
 
 
 # TODO: write README.md in polish
-# TODO: add progress bar for downloading video
 # TODO: resume folder download if it was previously cancelled
 # TODO: add async

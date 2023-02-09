@@ -62,62 +62,81 @@
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/3",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/3/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/4/",
-            "title": "Pokemon_Indigo_League_Sezon_1"
-
+            "title": "Pokemon_Indigo_League_Sezon_1",
+            "nsubfolders": 0,
+            "nvideos": 13
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/1/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/2/",
-            "title": "Pokemon_filmy_pełnometrażowe"
+            "title": "Pokemon_filmy_pełnometrażowe",
+            "nsubfolders": 0,
+            "nvideos": 20
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/1/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980980/2/",
-            "title": "Pokémon_Origins"
+            "title": "Pokémon_Origins",
+            "nsubfolders": 0,
+            "nvideos": 4
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/1",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/1/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/8681432/2/",
-            "title": "Pokemon_Diament_i_Perła_Galaktyczne_Bitwy_Sezon_12"
+            "title": "Pokemon_Diament_i_Perła_Galaktyczne_Bitwy_Sezon_12",
+            "nsubfolders": 0,
+            "nvideos": 53
         },
         {
             "url": "https://www.cda.pl/safirot/folder-glowny",
             "adjusted_url": "https://www.cda.pl/safirot/folder-glowny/1/",
             "next_page_url": "https://www.cda.pl/safirot/folder-glowny/2/",
-            "title": "Folder_główny"
+            "title": "Folder_główny",
+            "nsubfolders": 43,
+            "nvideos": 6
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/1/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/2/",
-            "title": "Folder_główny"
+            "title": "Folder_główny",
+            "nsubfolders": 25,
+            "nvideos": 1
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/1/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/1/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder-glowny/2/",
-            "title": "Folder_główny"
+            "title": "Folder_główny",
+            "nsubfolders": 25,
+            "nvideos": 1
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/9/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/10/",
-            "title": ""
+            "title": "",
+            "nsubfolders": 0,
+            "nvideos": 0
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/99",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/99/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
-            "title": ""
+            "title": "",
+            "nsubfolders": 0,
+            "nvideos": 0
         },
         {
             "url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
             "adjusted_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/100/",
             "next_page_url": "https://www.cda.pl/Pokemon_Odcinki_PL/folder/1980929/101/",
-            "title": ""
+            "title": "",
+            "nsubfolders": 0,
+            "nvideos": 0
         }
     ],
     "unknown": [
