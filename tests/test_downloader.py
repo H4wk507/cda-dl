@@ -5,8 +5,9 @@ import json
 from typing import TypedDict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cda_downloader.__main__ import parse_args
-from cda_downloader.main import Downloader
+from cda_downloader.main import parse_args
+from cda_downloader.downloader import Downloader
+from cda_downloader.utils import is_video, is_folder
 
 
 class _Video(TypedDict):
@@ -116,21 +117,21 @@ def test_handle_r_flag_unknown() -> None:
 
 def test_is_video() -> None:
     for video in TEST_DATA["videos"]:
-        assert Downloader.is_video(video["url"]) == True
+        assert is_video(video["url"]) == True
 
     for folder in TEST_DATA["folders"]:
-        assert Downloader.is_video(folder["url"]) == False
+        assert is_video(folder["url"]) == False
 
     for unknown in TEST_DATA["unknown"]:
-        assert Downloader.is_video(unknown["url"]) == False
+        assert is_video(unknown["url"]) == False
 
 
 def test_is_folder() -> None:
     for video in TEST_DATA["videos"]:
-        assert Downloader.is_folder(video["url"]) == False, video["url"]
+        assert is_folder(video["url"]) == False
 
     for folder in TEST_DATA["folders"]:
-        assert Downloader.is_folder(folder["url"]) == True
+        assert is_folder(folder["url"]) == True
 
     for unknown in TEST_DATA["unknown"]:
-        assert Downloader.is_folder(unknown["url"]) == False
+        assert is_folder(unknown["url"]) == False

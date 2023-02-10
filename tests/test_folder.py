@@ -4,7 +4,7 @@ import json
 from typing import TypedDict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cda_downloader.main import Folder
+from cda_downloader.folder import Folder
 
 
 class _Folder(TypedDict):

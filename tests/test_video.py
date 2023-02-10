@@ -5,7 +5,7 @@ from typing import TypedDict
 import json
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cda_downloader.main import Video
+from cda_downloader.video import Video
 
 
 class _Video(TypedDict):
@@ -32,6 +32,7 @@ VIDEOS = get_test_data()
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
 }
+
 
 def test_get_videoid() -> None:
     for video in VIDEOS:
