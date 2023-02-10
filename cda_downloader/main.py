@@ -11,7 +11,6 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import logging
-from typing import cast
 from tqdm import tqdm
 
 
@@ -19,8 +18,6 @@ class Downloader:
     urls: list[str]
     directory: str
     resolution: str
-    chrome_options: Options
-    driver: webdriver.Chrome
 
     def __init__(self, args: argparse.Namespace) -> None:
         self.urls = [url.strip() for url in args.urls]
@@ -39,13 +36,7 @@ class Downloader:
         for url in self.urls:
             if Downloader.is_video(url):
                 print(f"Dostępne rozdzielczości dla {url}:")
-                # Webdriver is not needed for listing resolutions.
-                v = Video(
-                    url,
-                    self.directory,
-                    self.resolution,
-                    cast(webdriver.Chrome, None),
-                )
+                v = Video(url, self.directory, self.resolution)
                 v.video_id = v.get_videoid()
                 resolutions = v.get_resolutions()
                 for res in resolutions:
@@ -63,13 +54,7 @@ class Downloader:
         for url in self.urls:
             if self.resolution != "najlepsza":
                 if Downloader.is_video(url):
-                    # Check if resolution is available without installing the webdriver.
-                    v = Video(
-                        url,
-                        self.directory,
-                        self.resolution,
-                        cast(webdriver.Chrome, None),
-                    )
+                    v = Video(url, self.directory, self.resolution)
                     v.video_id = v.get_videoid()
                     v.resolutions = v.get_resolutions()
                     v.check_resolution()
@@ -84,35 +69,39 @@ class Downloader:
     def main(self) -> None:
         for url in self.urls:
             if Downloader.is_video(url):
-                self.init_webdriver()
-                Video(
-                    url, self.directory, self.resolution, self.driver
-                ).download_video()
-                print("Skończono robotę.")
+                Video(url, self.directory, self.resolution).download_video()
             elif Downloader.is_folder(url):
-                self.init_webdriver()
-                Folder(url, self.directory, self.driver).download_folder()
-                print("Skończono robotę.")
+                Folder(url, self.directory).download_folder()
             else:
                 exit(f"Nie rozpoznano adresu url: {url}")
+        print("Skończono robotę.")
 
     @staticmethod
     def is_video(url: str) -> bool:
         """Check if url is a cda video."""
-        video_regex = r"cda\.pl\/video\/\w+\/?$"
-        match = re.search(video_regex, url, re.IGNORECASE)
+        video_regex = re.compile(
+            r"""https?://(?:(?:www|ebd)\.)?cda\.pl/
+            (?:video|[0-9]+x[0-9]+)/([0-9a-z]+)""",
+            re.VERBOSE | re.IGNORECASE,
+        )
+        match = video_regex.match(url)
         return match is not None
 
     @staticmethod
     def is_folder(url: str) -> bool:
         """Check if url is a cda folder."""
-        folder_regex1 = r"cda\.pl\/[^\/]+\/folder\/\w+\/?\d*?\/?$"
-        folder_regex2 = (
-            r"cda\.pl\/(?!video\/)[^\/]+\/(?!folder\/)[^\/]+\/?\d*?\/?$"
+        folder_regex1 = re.compile(
+            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
+            (?!folder/)[a-z0-9_-]+)/?(\d*)""",
+            re.VERBOSE | re.IGNORECASE,
         )
-        match1 = re.search(folder_regex1, url, re.IGNORECASE)
-        match2 = re.search(folder_regex2, url, re.IGNORECASE)
-        return match1 is not None or match2 is not None
+        folder_regex2 = re.compile(
+            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
+            folder/\d+)/?(\d*)""",
+            re.VERBOSE | re.IGNORECASE,
+        )
+        match = folder_regex1.match(url) or folder_regex2.match(url)
+        return match is not None
 
     @staticmethod
     def get_adjusted_title(title: str) -> str:
@@ -122,46 +111,21 @@ class Downloader:
         title = re.sub(r"[\s-]+", "_", title).strip("_")
         return title
 
-    def init_webdriver(self) -> None:
-        """Initialize the webdriver."""
-        os.environ["WDM_LOG"] = str(logging.NOTSET)
-        os.environ["WDM_LOCAL"] = "1"
-        self.chrome_options = self.get_options()
-        self.driver = webdriver.Chrome(
-            service=ChromeService(
-                ChromeDriverManager(cache_valid_range=1).install()
-            ),
-            options=self.chrome_options,
-        )
-
-    def get_options(self) -> Options:
-        """Get options for the webdriver."""
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--log-level=3")
-        return chrome_options
-
 
 class Video:
     video_id: str
     resolutions: list[str]
     video_soup: BeautifulSoup
+    driver: webdriver.Chrome
     video_stream: requests.Response
     size: int
     title: str
     filepath: str
 
-    def __init__(
-        self,
-        url: str,
-        directory: str,
-        resolution: str,
-        driver: webdriver.Chrome,
-    ) -> None:
+    def __init__(self, url: str, directory: str, resolution: str) -> None:
         self.url = url
         self.directory = directory
         self.resolution = resolution
-        self.driver = driver
 
     def download_video(self) -> None:
         self.initialize()
@@ -174,6 +138,7 @@ class Video:
         self.resolutions = self.get_resolutions()
         self.resolution = self.get_adjusted_resolution()
         self.check_resolution()
+        self.driver = self.get_webdriver()
         self.driver.get(
             f"https://ebd.cda.pl/1920x1080/{self.video_id}/?wersja={self.resolution}"
         )
@@ -185,8 +150,12 @@ class Video:
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
-        video_regex = r"cda\.pl\/video\/(\w+)\/?$"
-        match = re.search(video_regex, self.url, re.IGNORECASE)
+        video_regex = re.compile(
+            r"""https?://(?:(?:www|ebd)\.)?cda\.pl/
+            (?:video|[0-9]+x[0-9]+)/([0-9a-z]+)""",
+            re.VERBOSE | re.IGNORECASE,
+        )
+        match = video_regex.match(self.url)
         assert match
         return match.group(1)
 
@@ -225,6 +194,22 @@ class Video:
                 f"{self.resolution} rozdzielczość nie jest dostępna dla"
                 f" {self.url}"
             )
+
+    def get_webdriver(self) -> webdriver.Chrome:
+        os.environ["WDM_LOG"] = str(logging.NOTSET)
+        os.environ["WDM_LOCAL"] = "1"
+        options = self.get_options()
+        driver = webdriver.Chrome(
+            service=ChromeService(ChromeDriverManager().install()),
+            options=options,
+        )
+        return driver
+
+    def get_options(self) -> Options:
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--log-level=3")
+        return options
 
     def get_video_stream(self) -> requests.Response:
         video = self.video_soup.find("video")
@@ -274,26 +259,28 @@ class Folder:
     videos: list[Video]
     folders: list["Folder"]
 
-    def __init__(
-        self, url: str, directory: str, driver: webdriver.Chrome
-    ) -> None:
+    def __init__(self, url: str, directory: str) -> None:
         self.url = url
         self.url = self.get_adjusted_url()
         self.directory = directory
-        self.driver = driver
 
     def get_adjusted_url(self) -> str:
         """If the url has no page specified, add /1/ at the
         end of it, indicating that we start from the page 1."""
         if not self.url.endswith("/"):
             self.url += "/"
-        folder_regex1 = r"cda\.pl\/[^\/]+\/folder\/\w+\/(\d+\/)?$"
-        folder_regex2 = (
-            r"cda\.pl\/(?!video\/)[^\/]+\/(?!folder\/)[^\/]+\/(\d+\/)?$"
+        folder_regex1 = re.compile(
+            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
+            (?!folder/)[a-z0-9_-]+)/?(\d*)""",
+            re.VERBOSE | re.IGNORECASE,
         )
-        match1 = re.search(folder_regex1, self.url, re.IGNORECASE)
-        match2 = re.search(folder_regex2, self.url, re.IGNORECASE)
-        if match1 and match1.group(1) or match2 and match2.group(1):
+        folder_regex2 = re.compile(
+            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
+            folder/\d+)/?(\d*)""",
+            re.VERBOSE | re.IGNORECASE,
+        )
+        match = folder_regex1.match(self.url) or folder_regex2.match(self.url)
+        if match and match.group(2):
             return self.url
         else:
             return self.url + "1/"
@@ -333,14 +320,15 @@ class Folder:
 
     def get_subfolders(self) -> list["Folder"]:
         """Get subfolders of the folder."""
-        self.driver.get(self.url)
-        page_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        response = requests.get(self.url)
+        page_soup = BeautifulSoup(response.text, "html.parser")
         folders_soup = page_soup.find_all(
             "a", href=True, class_="object-folder"
         )
         folders = [
-            Folder(folder["href"], self.directory, self.driver)
+            Folder(folder["href"], self.directory)
             for folder in folders_soup
+            if "data-foldery_id" in folder.attrs
         ]
         return folders
 
@@ -374,7 +362,6 @@ class Folder:
                 "https://www.cda.pl" + video["href"],
                 self.directory,
                 "najlepsza",
-                self.driver,
             )
             for video in videos_soup
         ]
@@ -382,17 +369,25 @@ class Folder:
 
     def get_next_page(self) -> str:
         """Get next page of the folder."""
-        page_number_regex = r"(\d+)\/$"
-        match = re.search(page_number_regex, self.url)
-        assert match
-        page_number = int(match.group(1))
-        return (
-            re.sub(page_number_regex, "", self.url)
-            + str(page_number + 1)
-            + "/"
+        folder_regex1 = re.compile(
+            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
+            (?!folder/)[a-z0-9_-]+)/?(\d*)""",
+            re.VERBOSE | re.IGNORECASE,
         )
+        folder_regex2 = re.compile(
+            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
+            folder/\d+)/?(\d*)""",
+            re.VERBOSE | re.IGNORECASE,
+        )
+        match = folder_regex1.match(self.url) or folder_regex2.match(self.url)
+        assert match
+        page_number = int(match.group(2))
+        stripped_url = match.group(1)
+        return stripped_url + "/" + str(page_number + 1) + "/"
 
 
+# TODO: organize this shit to different files
 # TODO: write README.md in polish
 # TODO: resume folder download if it was previously cancelled
 # TODO: add async
+# TODO: maybe support for premium videos on login?

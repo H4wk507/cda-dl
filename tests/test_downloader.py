@@ -1,6 +1,6 @@
 import sys
 import os
-import pytest  # type: ignore
+import pytest
 import json
 from typing import TypedDict
 
@@ -127,7 +127,7 @@ def test_is_video() -> None:
 
 def test_is_folder() -> None:
     for video in TEST_DATA["videos"]:
-        assert Downloader.is_folder(video["url"]) == False
+        assert Downloader.is_folder(video["url"]) == False, video["url"]
 
     for folder in TEST_DATA["folders"]:
         assert Downloader.is_folder(folder["url"]) == True
