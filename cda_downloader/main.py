@@ -25,10 +25,12 @@ class Downloader:
             os.path.expanduser(os.path.expandvars(args.directory))
         )
         self.resolution = args.resolution
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+        }
         if args.list_resolutions:
             self.list_resolutions_and_exit()
         self.handle_r_flag()
-
         self.main()
 
     def list_resolutions_and_exit(self) -> None:
@@ -36,7 +38,7 @@ class Downloader:
         for url in self.urls:
             if Downloader.is_video(url):
                 print(f"Dostępne rozdzielczości dla {url}:")
-                v = Video(url, self.directory, self.resolution)
+                v = Video(url, self.directory, self.resolution, self.headers)
                 v.video_id = v.get_videoid()
                 resolutions = v.get_resolutions()
                 for res in resolutions:
@@ -54,7 +56,9 @@ class Downloader:
         for url in self.urls:
             if self.resolution != "najlepsza":
                 if Downloader.is_video(url):
-                    v = Video(url, self.directory, self.resolution)
+                    v = Video(
+                        url, self.directory, self.resolution, self.headers
+                    )
                     v.video_id = v.get_videoid()
                     v.resolutions = v.get_resolutions()
                     v.check_resolution()
@@ -69,9 +73,11 @@ class Downloader:
     def main(self) -> None:
         for url in self.urls:
             if Downloader.is_video(url):
-                Video(url, self.directory, self.resolution).download_video()
+                Video(
+                    url, self.directory, self.resolution, self.headers
+                ).download_video()
             elif Downloader.is_folder(url):
-                Folder(url, self.directory).download_folder()
+                Folder(url, self.directory, self.headers).download_folder()
             else:
                 exit(f"Nie rozpoznano adresu url: {url}")
         print("Skończono robotę.")
@@ -122,10 +128,17 @@ class Video:
     title: str
     filepath: str
 
-    def __init__(self, url: str, directory: str, resolution: str) -> None:
+    def __init__(
+        self,
+        url: str,
+        directory: str,
+        resolution: str,
+        headers: dict[str, str],
+    ) -> None:
         self.url = url
         self.directory = directory
         self.resolution = resolution
+        self.headers = headers
 
     def download_video(self) -> None:
         self.initialize()
@@ -161,7 +174,7 @@ class Video:
 
     def get_resolutions(self) -> list[str]:
         """Get available Video resolutions at the url."""
-        response = requests.get(self.url)
+        response = requests.get(self.url, headers=self.headers)
         video_soup = BeautifulSoup(response.text, "html.parser")
         media_player = video_soup.find(
             "div", {"id": f"mediaplayer{self.video_id}"}
@@ -218,7 +231,7 @@ class Video:
         src = video["src"]
         if not isinstance(src, str):
             exit("Error podczas parsowania 'video stream'")
-        video_stream = requests.get(src, stream=True)
+        video_stream = requests.get(src, stream=True, headers=self.headers)
         return video_stream
 
     def get_size(self) -> int:
@@ -259,10 +272,13 @@ class Folder:
     videos: list[Video]
     folders: list["Folder"]
 
-    def __init__(self, url: str, directory: str) -> None:
+    def __init__(
+        self, url: str, directory: str, headers: dict[str, str]
+    ) -> None:
         self.url = url
         self.url = self.get_adjusted_url()
         self.directory = directory
+        self.headers = headers
 
     def get_adjusted_url(self) -> str:
         """If the url has no page specified, add /1/ at the
@@ -309,7 +325,7 @@ class Folder:
         Path(self.directory).mkdir(parents=True, exist_ok=True)
 
     def get_folder_title(self) -> str:
-        response = requests.get(self.url)
+        response = requests.get(self.url, headers=self.headers)
         soup = BeautifulSoup(response.text, "html.parser")
         try:
             title_wrapper = soup.find_all("span", class_="folder-one-line")[-1]
@@ -320,13 +336,13 @@ class Folder:
 
     def get_subfolders(self) -> list["Folder"]:
         """Get subfolders of the folder."""
-        response = requests.get(self.url)
+        response = requests.get(self.url, headers=self.headers)
         page_soup = BeautifulSoup(response.text, "html.parser")
         folders_soup = page_soup.find_all(
             "a", href=True, class_="object-folder"
         )
         folders = [
-            Folder(folder["href"], self.directory)
+            Folder(folder["href"], self.directory, self.headers)
             for folder in folders_soup
             if "data-foldery_id" in folder.attrs
         ]
@@ -352,7 +368,7 @@ class Folder:
 
     def get_videos_from_current_page(self) -> list[Video]:
         """Get all videos from the current page."""
-        response = requests.get(self.url)
+        response = requests.get(self.url, headers=self.headers)
         page_soup = BeautifulSoup(response.content, "html.parser")
         videos_soup = page_soup.find_all(
             "a", href=True, class_="thumbnail-link"
@@ -362,6 +378,7 @@ class Folder:
                 "https://www.cda.pl" + video["href"],
                 self.directory,
                 "najlepsza",
+                self.headers
             )
             for video in videos_soup
         ]
