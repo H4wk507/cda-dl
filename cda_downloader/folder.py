@@ -1,11 +1,10 @@
-import re
 from tqdm import tqdm
 import requests
 from bs4 import BeautifulSoup
 import os
 from pathlib import Path
 from cda_downloader.video import Video
-from cda_downloader.utils import get_adjusted_title
+from cda_downloader.utils import get_adjusted_title, get_folder_match
 
 
 class Folder:
@@ -26,17 +25,7 @@ class Folder:
         end of it, indicating that we start from the page 1."""
         if not self.url.endswith("/"):
             self.url += "/"
-        folder_regex1 = re.compile(
-            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
-            (?!folder/)[a-z0-9_-]+)/?(\d*)""",
-            re.VERBOSE | re.IGNORECASE,
-        )
-        folder_regex2 = re.compile(
-            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
-            folder/\d+)/?(\d*)""",
-            re.VERBOSE | re.IGNORECASE,
-        )
-        match = folder_regex1.match(self.url) or folder_regex2.match(self.url)
+        match = get_folder_match(self.url)
         if match and match.group(2):
             return self.url
         else:
@@ -127,17 +116,7 @@ class Folder:
 
     def get_next_page(self) -> str:
         """Get next page of the folder."""
-        folder_regex1 = re.compile(
-            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
-            (?!folder/)[a-z0-9_-]+)/?(\d*)""",
-            re.VERBOSE | re.IGNORECASE,
-        )
-        folder_regex2 = re.compile(
-            r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
-            folder/\d+)/?(\d*)""",
-            re.VERBOSE | re.IGNORECASE,
-        )
-        match = folder_regex1.match(self.url) or folder_regex2.match(self.url)
+        match = get_folder_match(self.url)
         assert match
         page_number = int(match.group(2))
         stripped_url = match.group(1)

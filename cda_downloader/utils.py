@@ -1,19 +1,22 @@
 import re
 
 
-def is_video(url: str) -> bool:
-    """Check if url is a cda video."""
+def get_video_match(url: str) -> re.Match[str] | None:
     video_regex = re.compile(
         r"""https?://(?:(?:www|ebd)\.)?cda\.pl/
         (?:video|[0-9]+x[0-9]+)/([0-9a-z]+)""",
         re.VERBOSE | re.IGNORECASE,
     )
-    match = video_regex.match(url)
+    return video_regex.match(url)
+
+
+def is_video(url: str) -> bool:
+    """Check if url is a cda video."""
+    match = get_video_match(url)
     return match is not None
 
 
-def is_folder(url: str) -> bool:
-    """Check if url is a cda folder."""
+def get_folder_match(url: str) -> re.Match[str] | None:
     folder_regex1 = re.compile(
         r"""(https?://(?:www\.)?cda\.pl/(?!video)[a-z0-9_-]+/
         (?!folder/)[a-z0-9_-]+)/?(\d*)""",
@@ -24,7 +27,12 @@ def is_folder(url: str) -> bool:
         folder/\d+)/?(\d*)""",
         re.VERBOSE | re.IGNORECASE,
     )
-    match = folder_regex1.match(url) or folder_regex2.match(url)
+    return folder_regex1.match(url) or folder_regex2.match(url)
+
+
+def is_folder(url: str) -> bool:
+    """Check if url is a cda folder."""
+    match = get_folder_match(url)
     return match is not None
 
 

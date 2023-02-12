@@ -1,4 +1,3 @@
-import re
 from tqdm import tqdm
 import requests
 from bs4 import BeautifulSoup
@@ -11,7 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from cda_downloader.utils import get_adjusted_title
+from cda_downloader.utils import get_adjusted_title, get_video_match
 
 
 class Video:
@@ -53,18 +52,13 @@ class Video:
         )
         self.video_soup = BeautifulSoup(self.driver.page_source, "html.parser")
         self.video_stream = self.get_video_stream()
-        self.size = int(self.video_stream.headers.get("content-length", 0))
+        self.size = self.get_size()
         self.title = self.get_title()
         self.filepath = self.get_filepath()
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
-        video_regex = re.compile(
-            r"""https?://(?:(?:www|ebd)\.)?cda\.pl/
-            (?:video|[0-9]+x[0-9]+)/([0-9a-z]+)""",
-            re.VERBOSE | re.IGNORECASE,
-        )
-        match = video_regex.match(self.url)
+        match = get_video_match(self.url)
         assert match
         return match.group(1)
 
@@ -86,15 +80,14 @@ class Video:
         return self.resolutions[-1]
 
     def is_valid_resolution(self) -> bool:
-        """Check if Video resolution is available
-        from the list of resolutions."""
         return self.resolution in self.resolutions
 
     def get_adjusted_resolution(self) -> str:
-        if self.resolution == "najlepsza":
-            return self.get_best_resolution()
-        else:
-            return self.resolution
+        return (
+            self.get_best_resolution()
+            if self.resolution == "najlepsza"
+            else self.resolution
+        )
 
     def check_resolution(self) -> None:
         """Check if resolution is correct."""
@@ -124,7 +117,7 @@ class Video:
         video = self.video_soup.find("video")
         if not isinstance(video, Tag):
             exit("Error podczas parsowania 'video stream'")
-        src = video["src"]
+        src = video.get("src", None)
         if not isinstance(src, str):
             exit("Error podczas parsowania 'video stream'")
         video_stream = requests.get(src, stream=True, headers=self.headers)
