@@ -1,8 +1,9 @@
-import sys
+import aiohttp
+import json
 import os
 import pytest
-from typing import TypedDict
-import json
+import sys
+from typing import TypedDict, cast
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cda_downloader.video import Video
@@ -36,38 +37,51 @@ HEADERS = {
 
 def test_get_videoid() -> None:
     for video in VIDEOS:
-        v = Video(video["url"], ".", "najlepsza", HEADERS)
+        v = Video(
+            video["url"],
+            ".",
+            "najlepsza",
+            "",
+            HEADERS,
+            cast(aiohttp.ClientSession, None),
+        )
         assert v.get_videoid() == video["videoid"]
 
 
-def test_get_resolutions() -> None:
+@pytest.mark.asyncio
+async def test_get_resolutions() -> None:
     for video in VIDEOS:
-        v = Video(video["url"], ".", "najlepsza", HEADERS)
-        v.video_id = v.get_videoid()
-        assert v.get_resolutions() == video["resolutions"]
+        async with aiohttp.ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", "", HEADERS, session)
+            v.video_id = v.get_videoid()
+            assert await v.get_resolutions() == video["resolutions"]
 
 
-def test_get_adjusted_resolution() -> None:
+@pytest.mark.asyncio
+async def test_get_adjusted_resolution() -> None:
     for video in VIDEOS:
-        v = Video(video["url"], ".", "najlepsza", HEADERS)
-        v.video_id = v.get_videoid()
-        v.resolutions = v.get_resolutions()
-        assert v.get_adjusted_resolution() == video["adjusted_resolution"]
+        async with aiohttp.ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", "", HEADERS, session)
+            v.video_id = v.get_videoid()
+            v.resolutions = await v.get_resolutions()
+            assert v.get_adjusted_resolution() == video["adjusted_resolution"]
 
 
-def test_check_resolution() -> None:
+@pytest.mark.asyncio
+async def test_check_resolution() -> None:
     # Slice cause too many requests
     for video in VIDEOS[:2]:
-        v = Video(video["url"], ".", "najlepsza", HEADERS)
-        v.video_id = v.get_videoid()
-        v.resolutions = v.get_resolutions()
-        for res in video["invalid_resolutions"]:
-            v.resolution = res
-            with pytest.raises(
-                SystemExit,
-                match=(
-                    f"{v.resolution} rozdzielczość nie jest dostępna dla"
-                    f" {v.url}"
-                ),
-            ):
-                v.check_resolution()
+        async with aiohttp.ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", "", HEADERS, session)
+            v.video_id = v.get_videoid()
+            v.resolutions = await v.get_resolutions()
+            for res in video["invalid_resolutions"]:
+                v.resolution = res
+                with pytest.raises(
+                    SystemExit,
+                    match=(
+                        f"{v.resolution} rozdzielczość nie jest dostępna dla"
+                        f" {v.url}"
+                    ),
+                ):
+                    v.check_resolution()
