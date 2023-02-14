@@ -1,9 +1,9 @@
 import os
 import asyncio
 import argparse
-import aiohttp
+from aiohttp import ClientSession
 from webdriver_manager.chrome import ChromeDriverManager
-from cda_downloader.utils import is_video, is_folder
+from cda_downloader.utils import is_video, is_folder, clear
 from cda_downloader.video import Video
 from cda_downloader.folder import Folder
 
@@ -32,28 +32,23 @@ class Downloader:
     async def main(self) -> None:
         await self.handle_flags()
         self.driver_path = await self.install_and_get_driver_path()
-        async with aiohttp.ClientSession() as session:
-            await asyncio.gather(
-                *[self.download_url(url, session) for url in self.urls]
-            )
-        print("Skończono robotę.")
+        self.video_urls, self.folder_urls = self.get_urls()
+        await self.download_folders()
+        await self.download_videos()
+        clear()
+        print("Skończono pobieranie wszystkich plików.")
 
     async def handle_flags(self) -> None:
         if self.list_resolutions:
             await self.list_resolutions_and_exit()
         await self.handle_r_flag()
 
-    async def install_and_get_driver_path(self) -> str:
-        return ChromeDriverManager().install()
-
     async def list_resolutions_and_exit(self) -> None:
         """List available resolutions for a video and exit."""
         for url in self.urls:
             if is_video(url):
                 print(f"Dostępne rozdzielczości dla {url}:")
-                async with aiohttp.ClientSession(
-                    headers=self.headers
-                ) as session:
+                async with ClientSession(headers=self.headers) as session:
                     v = Video(
                         url,
                         self.directory,
@@ -79,9 +74,7 @@ class Downloader:
         for url in self.urls:
             if self.resolution != "najlepsza":
                 if is_video(url):
-                    async with aiohttp.ClientSession(
-                        headers=self.headers
-                    ) as session:
+                    async with ClientSession(headers=self.headers) as session:
                         v = Video(
                             url,
                             self.directory,
@@ -101,21 +94,49 @@ class Downloader:
                 else:
                     exit(f"Nie rozpoznano adresu url: {url}")
 
-    async def download_url(
-        self, url: str, session: aiohttp.ClientSession
-    ) -> None:
-        if is_video(url):
-            await Video(
-                url,
-                self.directory,
-                self.resolution,
-                self.driver_path,
-                self.headers,
-                session,
-            ).download_video()
-        elif is_folder(url):
-            await Folder(
-                url, self.directory, self.driver_path, self.headers, session
-            ).download_folder()
-        else:
-            print(f"Nie rozpoznano adresu url: {url}")
+    async def install_and_get_driver_path(self) -> str:
+        return ChromeDriverManager().install()
+
+    def get_urls(self) -> tuple[list[str], list[str]]:
+        video_urls: list[str] = []
+        folder_urls: list[str] = []
+        for url in self.urls:
+            if is_video(url):
+                video_urls.append(url)
+            elif is_folder(url):
+                folder_urls.append(url)
+            else:
+                print(f"Nie rozpoznano adresu url: {url}")
+        return video_urls, folder_urls
+
+    async def download_folders(self) -> None:
+        async with ClientSession(headers=self.headers) as session:
+            for folder_url in self.folder_urls:
+                await Folder(
+                    folder_url,
+                    self.directory,
+                    self.driver_path,
+                    self.headers,
+                    session,
+                ).download_folder()
+
+    async def download_videos(self) -> None:
+        async with ClientSession(headers=self.headers) as session:
+            limit = asyncio.Semaphore(3)
+
+            async def wrapper(video_url: str) -> None:
+                async with limit:
+                    await Video(
+                        video_url,
+                        self.directory,
+                        self.resolution,
+                        self.driver_path,
+                        self.headers,
+                        session,
+                    ).download_video()
+
+            tasks = [
+                asyncio.create_task(wrapper(video_url))
+                for video_url in self.video_urls
+            ]
+            await asyncio.gather(*tasks)

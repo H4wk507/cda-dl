@@ -1,16 +1,16 @@
 import os
 import logging
 import json
-import aiohttp
 import aiofiles
 from tqdm import tqdm
-from pathlib import Path
-from bs4 import BeautifulSoup
-from bs4.element import Tag
 from selenium import webdriver
+from pathlib import Path
+from bs4.element import Tag
+from bs4 import BeautifulSoup
+from aiohttp import ClientResponse, ClientSession
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
-from cda_downloader.utils import get_adjusted_title, get_video_match
+from cda_downloader.utils import get_safe_title, get_video_match
 
 
 class Video:
@@ -18,7 +18,7 @@ class Video:
     resolutions: list[str]
     video_soup: BeautifulSoup
     driver: webdriver.Chrome
-    video_stream: aiohttp.ClientResponse
+    video_stream: ClientResponse
     size: int
     title: str
     filepath: str
@@ -30,7 +30,7 @@ class Video:
         resolution: str,
         driver_path: str,
         headers: dict[str, str],
-        session: aiohttp.ClientSession,
+        session: ClientSession,
     ) -> None:
         self.url = url
         self.directory = directory
@@ -41,7 +41,6 @@ class Video:
 
     async def download_video(self) -> None:
         await self.initialize()
-        Path(self.directory).mkdir(parents=True, exist_ok=True)
         await self.stream_data()
 
     async def initialize(self) -> None:
@@ -59,6 +58,7 @@ class Video:
         self.size = self.get_size()
         self.title = self.get_title()
         self.filepath = self.get_filepath()
+        self.make_directory()
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
@@ -116,7 +116,7 @@ class Video:
         options.add_argument("--log-level=3")
         return options
 
-    async def get_video_stream(self) -> aiohttp.ClientResponse:
+    async def get_video_stream(self) -> ClientResponse:
         video = self.video_soup.find("video")
         if not isinstance(video, Tag):
             exit("Error podczas parsowania 'video stream'")
@@ -135,10 +135,13 @@ class Video:
         if not isinstance(title_tag, Tag):
             exit("Error podczas parsowania 'title'")
         title = title_tag.text.strip("\n")
-        return get_adjusted_title(title)
+        return get_safe_title(title)
 
     def get_filepath(self) -> str:
         return os.path.join(self.directory, f"{self.title}.mp4")
+
+    def make_directory(self) -> None:
+        Path(self.directory).mkdir(parents=True, exist_ok=True)
 
     async def stream_data(self) -> None:
         block_size = 1024

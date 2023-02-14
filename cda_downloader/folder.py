@@ -1,12 +1,12 @@
 from __future__ import annotations
 import os
 import asyncio
-import aiohttp
+from aiohttp import ClientSession
 from tqdm.asyncio import tqdm
 from pathlib import Path
 from bs4 import BeautifulSoup
 from cda_downloader.video import Video
-from cda_downloader.utils import get_adjusted_title, get_folder_match
+from cda_downloader.utils import get_safe_title, get_folder_match
 
 
 class Folder:
@@ -20,7 +20,7 @@ class Folder:
         directory: str,
         driver_path: str,
         headers: dict[str, str],
-        session: aiohttp.ClientSession,
+        session: ClientSession,
     ) -> None:
         self.url = url
         self.url = self.get_adjusted_url()
@@ -55,7 +55,11 @@ class Folder:
     async def download_subfolders(self) -> None:
         """Download all subfolders of the folder."""
         for folder in tqdm(
-            self.folders, total=len(self.folders), desc=self.title, leave=False
+            self.folders,
+            total=len(self.folders),
+            desc=self.title,
+            unit="FOLDER",
+            leave=False,
         ):
             await folder.download_folder()
 
@@ -67,18 +71,20 @@ class Folder:
 
     async def get_folder_title(self) -> str:
         response = await self.session.get(self.url, headers=self.headers)
-        soup = BeautifulSoup(await response.text(), "html.parser")
+        text = await response.text()
+        soup = BeautifulSoup(text, "html.parser")
         try:
             title_wrapper = soup.find_all("span", class_="folder-one-line")[-1]
         except IndexError:
             exit("Error podczas parsowania 'folder title'")
         title = title_wrapper.find("a", href=True).text
-        return get_adjusted_title(title)
+        return get_safe_title(title)
 
     async def get_subfolders(self) -> list[Folder]:
         """Get subfolders of the folder."""
         response = await self.session.get(self.url, headers=self.headers)
-        page_soup = BeautifulSoup(await response.text(), "html.parser")
+        text = await response.text()
+        page_soup = BeautifulSoup(text, "html.parser")
         folders_soup = page_soup.find_all(
             "a", href=True, class_="object-folder"
         )
@@ -97,20 +103,18 @@ class Folder:
 
     async def download_videos_from_folder(self) -> None:
         """Download all videos from the folder."""
-
         limit = asyncio.Semaphore(3)
 
-        async def wrapper(video: Video, limit: asyncio.Semaphore) -> None:
+        async def wrapper(video: Video) -> None:
             async with limit:
                 await video.download_video()
 
-        tasks = [
-            asyncio.create_task(wrapper(video, limit)) for video in self.videos
-        ]
+        tasks = [asyncio.create_task(wrapper(video)) for video in self.videos]
         await tqdm.gather(
             *tasks,
             total=len(self.videos),
             desc=self.title,
+            unit="VIDEO",
             leave=False,
         )
 

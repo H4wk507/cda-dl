@@ -1,4 +1,5 @@
 import re
+import os
 
 
 def get_video_match(url: str) -> re.Match[str] | None:
@@ -36,9 +37,14 @@ def is_folder(url: str) -> bool:
     return match is not None
 
 
-def get_adjusted_title(title: str) -> str:
+def get_safe_title(title: str) -> str:
     """Remove characters that are not allowed in the filename
     and convert spaces to underscores."""
     title = re.sub(r"[^\w\s-]", "", title)
     title = re.sub(r"[\s-]+", "_", title).strip("_")
     return title
+
+
+def clear() -> None:
+    """Clears the terminal screen"""
+    os.system("cls" if os.name == "nt" else "clear")
