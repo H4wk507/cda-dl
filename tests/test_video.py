@@ -1,7 +1,7 @@
-import aiohttp
 import json
 import os
 import pytest
+from aiohttp import ClientSession
 import sys
 from typing import TypedDict, cast
 
@@ -38,12 +38,7 @@ HEADERS = {
 def test_get_videoid() -> None:
     for video in VIDEOS:
         v = Video(
-            video["url"],
-            ".",
-            "najlepsza",
-            "",
-            HEADERS,
-            cast(aiohttp.ClientSession, None),
+            video["url"], ".", "najlepsza", HEADERS, cast(ClientSession, None)
         )
         assert v.get_videoid() == video["videoid"]
 
@@ -51,18 +46,22 @@ def test_get_videoid() -> None:
 @pytest.mark.asyncio
 async def test_get_resolutions() -> None:
     for video in VIDEOS:
-        async with aiohttp.ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", "", HEADERS, session)
+        async with ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", HEADERS, session)
             v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.video_info = await v.get_video_info()
             assert await v.get_resolutions() == video["resolutions"]
 
 
 @pytest.mark.asyncio
 async def test_get_adjusted_resolution() -> None:
     for video in VIDEOS:
-        async with aiohttp.ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", "", HEADERS, session)
+        async with ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", HEADERS, session)
             v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.video_info = await v.get_video_info()
             v.resolutions = await v.get_resolutions()
             assert v.get_adjusted_resolution() == video["adjusted_resolution"]
 
@@ -71,9 +70,11 @@ async def test_get_adjusted_resolution() -> None:
 async def test_check_resolution() -> None:
     # Slice cause too many requests
     for video in VIDEOS[:2]:
-        async with aiohttp.ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", "", HEADERS, session)
+        async with ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", HEADERS, session)
             v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.video_info = await v.get_video_info()
             v.resolutions = await v.get_resolutions()
             for res in video["invalid_resolutions"]:
                 v.resolution = res

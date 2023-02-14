@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 import asyncio
-from aiohttp import ClientSession
+import aiohttp
 from tqdm.asyncio import tqdm
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -18,14 +18,12 @@ class Folder:
         self,
         url: str,
         directory: str,
-        driver_path: str,
         headers: dict[str, str],
-        session: ClientSession,
+        session: aiohttp.ClientSession,
     ) -> None:
         self.url = url
         self.url = self.get_adjusted_url()
         self.directory = directory
-        self.driver_path = driver_path
         self.headers = headers
         self.session = session
 
@@ -40,12 +38,12 @@ class Folder:
         else:
             return self.url + "1/"
 
-    async def download_folder(self) -> None:
+    async def download_folder(self, semaphore: asyncio.Semaphore) -> None:
         """Recursively download all videos and subfolders of the folder."""
-        _, self.folders = await asyncio.gather(
-            self.make_directory(),
-            self.get_subfolders(),
-        )
+        self.semaphore = semaphore
+        self.soup = await self.get_soup()
+        await self.make_directory()
+        self.folders = await self.get_subfolders()
         if len(self.folders) > 0:
             await self.download_subfolders()
         self.videos = await self.get_videos_from_folder()
@@ -61,7 +59,15 @@ class Folder:
             unit="FOLDER",
             leave=False,
         ):
-            await folder.download_folder()
+            await folder.download_folder(self.semaphore)
+
+    async def get_soup(self) -> BeautifulSoup:
+        async with self.session.get(
+            self.url, headers=self.headers
+        ) as response:
+            text = await response.text()
+        soup = BeautifulSoup(text, "html.parser")
+        return soup
 
     async def make_directory(self) -> None:
         """Make directory for the folder."""
@@ -70,11 +76,10 @@ class Folder:
         Path(self.directory).mkdir(parents=True, exist_ok=True)
 
     async def get_folder_title(self) -> str:
-        response = await self.session.get(self.url, headers=self.headers)
-        text = await response.text()
-        soup = BeautifulSoup(text, "html.parser")
         try:
-            title_wrapper = soup.find_all("span", class_="folder-one-line")[-1]
+            title_wrapper = self.soup.find_all(
+                "span", class_="folder-one-line"
+            )[-1]
         except IndexError:
             exit("Error podczas parsowania 'folder title'")
         title = title_wrapper.find("a", href=True).text
@@ -82,17 +87,13 @@ class Folder:
 
     async def get_subfolders(self) -> list[Folder]:
         """Get subfolders of the folder."""
-        response = await self.session.get(self.url, headers=self.headers)
-        text = await response.text()
-        page_soup = BeautifulSoup(text, "html.parser")
-        folders_soup = page_soup.find_all(
+        folders_soup = self.soup.find_all(
             "a", href=True, class_="object-folder"
         )
         folders = [
             Folder(
                 folder["href"],
                 self.directory,
-                self.driver_path,
                 self.headers,
                 self.session,
             )
@@ -103,10 +104,9 @@ class Folder:
 
     async def download_videos_from_folder(self) -> None:
         """Download all videos from the folder."""
-        limit = asyncio.Semaphore(3)
 
         async def wrapper(video: Video) -> None:
-            async with limit:
+            async with self.semaphore:
                 await video.download_video()
 
         tasks = [asyncio.create_task(wrapper(video)) for video in self.videos]
@@ -131,8 +131,11 @@ class Folder:
 
     async def get_videos_from_current_page(self) -> list[Video]:
         """Get all videos from the current page."""
-        response = await self.session.get(self.url, headers=self.headers)
-        page_soup = BeautifulSoup(await response.text(), "html.parser")
+        async with self.session.get(
+            self.url, headers=self.headers
+        ) as response:
+            text = await response.text()
+        page_soup = BeautifulSoup(text, "html.parser")
         videos_soup = page_soup.find_all(
             "a", href=True, class_="thumbnail-link"
         )
@@ -141,7 +144,6 @@ class Folder:
                 "https://www.cda.pl" + video["href"],
                 self.directory,
                 "najlepsza",
-                self.driver_path,
                 self.headers,
                 self.session,
             )

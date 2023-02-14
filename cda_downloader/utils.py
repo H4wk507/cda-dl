@@ -1,5 +1,6 @@
 import re
 import os
+import urllib.parse
 
 
 def get_video_match(url: str) -> re.Match[str] | None:
@@ -48,3 +49,23 @@ def get_safe_title(title: str) -> str:
 def clear() -> None:
     """Clears the terminal screen"""
     os.system("cls" if os.name == "nt" else "clear")
+
+
+# source: // https://www.cda.pl/js/player.js?t=1676342296
+def decrypt_url(url: str) -> str:
+    for p in ("_XDDD", "_CDA", "_ADC", "_CXD", "_QWE", "_Q5", "_IKSDE"):
+        url = url.replace(p, "")
+    url = urllib.parse.unquote(url)
+    b = []
+    for c in url:
+        f = c if isinstance(c, int) else ord(c)
+        b.append(chr(33 + (f + 14) % 94) if 33 <= f <= 126 else chr(f))
+    a = "".join(b)
+    a = a.replace(".cda.mp4", "")
+    a = a.replace(".2cda.pl", ".cda.pl")
+    a = a.replace(".3cda.pl", ".cda.pl")
+    if "/upstream" in a:
+        a = a.replace("/upstream", ".mp4/upstream")
+        return "https://" + a
+    else:
+        return "https://" + a + ".mp4"

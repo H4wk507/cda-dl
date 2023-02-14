@@ -1,24 +1,21 @@
 import os
-import logging
 import json
+from tqdm.asyncio import tqdm
 import aiofiles
-from tqdm import tqdm
-from selenium import webdriver
+import aiohttp
 from pathlib import Path
 from bs4.element import Tag
 from bs4 import BeautifulSoup
-from aiohttp import ClientResponse, ClientSession
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service as ChromeService
-from cda_downloader.utils import get_safe_title, get_video_match
+from typing import Any
+from cda_downloader.utils import get_safe_title, get_video_match, decrypt_url
 
 
 class Video:
     video_id: str
     resolutions: list[str]
     video_soup: BeautifulSoup
-    driver: webdriver.Chrome
-    video_stream: ClientResponse
+    video_info: dict[str, Any]
+    video_stream: aiohttp.ClientResponse
     size: int
     title: str
     filepath: str
@@ -28,14 +25,12 @@ class Video:
         url: str,
         directory: str,
         resolution: str,
-        driver_path: str,
         headers: dict[str, str],
-        session: ClientSession,
+        session: aiohttp.ClientSession,
     ) -> None:
         self.url = url
         self.directory = directory
         self.resolution = resolution
-        self.driver_path = driver_path
         self.headers = headers
         self.session = session
 
@@ -46,14 +41,12 @@ class Video:
     async def initialize(self) -> None:
         """Initialize members required to download the Video."""
         self.video_id = self.get_videoid()
+        self.video_soup = await self.get_video_soup()
+        self.video_info = await self.get_video_info()
         self.resolutions = await self.get_resolutions()
         self.resolution = self.get_adjusted_resolution()
         self.check_resolution()
-        self.driver = self.get_webdriver()
-        self.driver.get(
-            f"https://ebd.cda.pl/1920x1080/{self.video_id}/?wersja={self.resolution}"
-        )
-        self.video_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        self.file = await self.get_file()
         self.video_stream = await self.get_video_stream()
         self.size = self.get_size()
         self.title = self.get_title()
@@ -66,18 +59,26 @@ class Video:
         assert match
         return match.group(1)
 
-    async def get_resolutions(self) -> list[str]:
-        """Get available Video resolutions at the url."""
-        response = await self.session.get(self.url, headers=self.headers)
-        video_soup = BeautifulSoup(await response.text(), "html.parser")
-        media_player = video_soup.find(
+    async def get_video_soup(self) -> BeautifulSoup:
+        async with self.session.get(
+            self.url, headers=self.headers
+        ) as response:
+            text = await response.text()
+        return BeautifulSoup(text, "html.parser")
+
+    async def get_video_info(self) -> dict[str, Any]:
+        """Get Video info from the url."""
+        media_player = self.video_soup.find(
             "div", {"id": f"mediaplayer{self.video_id}"}
         )
         if not isinstance(media_player, Tag):
             exit("Error podczas parsowania 'media player'")
-        video_info = json.loads(media_player.attrs["player_data"])
-        resolutions = video_info["video"]["qualities"]
-        return list(resolutions)
+        player_data = json.loads(media_player.attrs["player_data"])
+        return player_data["video"]
+
+    async def get_resolutions(self) -> list[str]:
+        """Get available Video resolutions at the url."""
+        return list(self.video_info["qualities"])
 
     def get_best_resolution(self) -> str:
         """Get best Video resolution available at the url."""
@@ -101,29 +102,11 @@ class Video:
                 f" {self.url}"
             )
 
-    def get_webdriver(self) -> webdriver.Chrome:
-        os.environ["WDM_LOG"] = str(logging.NOTSET)
-        os.environ["WDM_LOCAL"] = "1"
-        options = self.get_options()
-        driver = webdriver.Chrome(
-            service=ChromeService(self.driver_path), options=options
-        )
-        return driver
+    async def get_file(self) -> str:
+        return decrypt_url(self.video_info["file"])
 
-    def get_options(self) -> Options:
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--log-level=3")
-        return options
-
-    async def get_video_stream(self) -> ClientResponse:
-        video = self.video_soup.find("video")
-        if not isinstance(video, Tag):
-            exit("Error podczas parsowania 'video stream'")
-        src = video.get("src", None)
-        if not isinstance(src, str):
-            exit("Error podczas parsowania 'video stream'")
-        video_stream = await self.session.get(src, headers=self.headers)
+    async def get_video_stream(self) -> aiohttp.ClientResponse:
+        video_stream = await self.session.get(self.file, headers=self.headers)
         return video_stream
 
     def get_size(self) -> int:

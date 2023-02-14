@@ -46,8 +46,8 @@ if __name__ == "__main__":
     Downloader(args)
 
 
+# TODO: add setup.py file for installing
 # TODO: write README.md in polish
 # TODO: resume folder download if it was previously cancelled
-# TODO: add async
 # TODO: maybe support for premium videos on login?
 # TODO: better error handling

@@ -1,7 +1,7 @@
-import aiohttp
 import json
 import os
 import pytest
+from aiohttp import ClientSession
 import sys
 from typing import TypedDict, cast
 
@@ -39,9 +39,7 @@ HEADERS = {
 def test_get_adjusted_url() -> None:
     for folder in FOLDERS:
         # get_adjusted_url is called in the Folder constructor
-        f = Folder(
-            folder["url"], ".", "", HEADERS, cast(aiohttp.ClientSession, None)
-        )
+        f = Folder(folder["url"], ".", HEADERS, cast(ClientSession, None))
         assert f.url == folder["adjusted_url"]
 
 
@@ -49,30 +47,30 @@ def test_get_adjusted_url() -> None:
 async def test_get_folder_title() -> None:
     # last 3 folders are incorrect so we can't get title out of them
     for folder in FOLDERS[:-3]:
-        async with aiohttp.ClientSession() as session:
-            f = Folder(folder["url"], ".", "", HEADERS, session)
+        async with ClientSession() as session:
+            f = Folder(folder["url"], ".", HEADERS, session)
+            f.soup = await f.get_soup()
             assert await f.get_folder_title() == folder["title"]
 
 
 def test_get_next_page() -> None:
     for folder in FOLDERS:
-        f = Folder(
-            folder["url"], ".", "", HEADERS, cast(aiohttp.ClientSession, None)
-        )
+        f = Folder(folder["url"], ".", HEADERS, cast(ClientSession, None))
         assert f.get_next_page() == folder["next_page_url"]
 
 
 @pytest.mark.asyncio
 async def test_get_videos_from_folder() -> None:
     for folder in FOLDERS:
-        async with aiohttp.ClientSession() as session:
-            f = Folder(folder["url"], ".", "", HEADERS, session)
+        async with ClientSession() as session:
+            f = Folder(folder["url"], ".", HEADERS, session)
             assert len(await f.get_videos_from_folder()) == folder["nvideos"]
 
 
 @pytest.mark.asyncio
 async def test_get_subfolders() -> None:
     for folder in FOLDERS:
-        async with aiohttp.ClientSession() as session:
-            f = Folder(folder["url"], ".", "", HEADERS, session)
+        async with ClientSession() as session:
+            f = Folder(folder["url"], ".", HEADERS, session)
+            f.soup = await f.get_soup()
             assert len(await f.get_subfolders()) == folder["nsubfolders"]
