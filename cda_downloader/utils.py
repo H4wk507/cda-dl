@@ -1,5 +1,4 @@
 import re
-import os
 import urllib.parse
 
 
@@ -44,11 +43,6 @@ def get_safe_title(title: str) -> str:
     title = re.sub(r"[^\w\s-]", "", title)
     title = re.sub(r"[\s-]+", "_", title).strip("_")
     return title
-
-
-def clear() -> None:
-    """Clears the terminal screen"""
-    os.system("cls" if os.name == "nt" else "clear")
 
 
 # source: // https://www.cda.pl/js/player.js?t=1676342296

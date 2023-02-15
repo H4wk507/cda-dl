@@ -32,6 +32,13 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         help="Pobierz film w podanej rozdzielczości (domyślnie '%(default)s')",
     )
     parser.add_argument(
+        "-o",
+        "--overwrite",
+        dest="overwrite",
+        action="store_true",
+        help="Nadpisz pliki, jeśli istnieją",
+    )
+    parser.add_argument(
         "urls",
         metavar="URL",
         type=str,
@@ -46,6 +53,7 @@ if __name__ == "__main__":
     Downloader(args)
 
 
+# TODO: partial files for easier resuming the download
 # TODO: add setup.py file for installing
 # TODO: write README.md in polish
 # TODO: resume folder download if it was previously cancelled

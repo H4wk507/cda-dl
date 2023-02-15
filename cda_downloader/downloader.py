@@ -2,7 +2,7 @@ import os
 import asyncio
 import aiohttp
 import argparse
-from cda_downloader.utils import is_video, is_folder, clear
+from cda_downloader.utils import is_video, is_folder
 from cda_downloader.video import Video
 from cda_downloader.folder import Folder
 
@@ -22,10 +22,11 @@ class Downloader:
             os.path.expanduser(os.path.expandvars(args.directory))
         )
         self.resolution = args.resolution
+        self.list_resolutions = args.list_resolutions
+        self.overwrite = args.overwrite
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
         }
-        self.list_resolutions = args.list_resolutions
         self.semaphore = asyncio.Semaphore(3)
         asyncio.run(self.main())
 
@@ -35,8 +36,7 @@ class Downloader:
             self.video_urls, self.folder_urls = self.get_urls()
             await self.download_folders(session)
             await self.download_videos(session)
-        clear()
-        print("Skończono pobieranie wszystkich plików.")
+        print("\nSkończono pobieranie wszystkich plików.")
 
     async def handle_flags(self, session: aiohttp.ClientSession) -> None:
         if self.list_resolutions:
@@ -108,6 +108,7 @@ class Downloader:
                 print(f"Nie rozpoznano adresu url: {url}")
         return video_urls, folder_urls
 
+    # TODO: pass whole args.namespace to Folder and Video??
     async def download_folders(self, session: aiohttp.ClientSession) -> None:
         for folder_url in self.folder_urls:
             await Folder(
@@ -115,7 +116,7 @@ class Downloader:
                 self.directory,
                 self.headers,
                 session,
-            ).download_folder(self.semaphore)
+            ).download_folder(self.semaphore, self.overwrite)
 
     async def download_videos(self, session: aiohttp.ClientSession) -> None:
         async def wrapper(video_url: str) -> None:
@@ -126,7 +127,7 @@ class Downloader:
                     self.resolution,
                     self.headers,
                     session,
-                ).download_video()
+                ).download_video(self.overwrite)
 
         tasks = [
             asyncio.create_task(wrapper(video_url))

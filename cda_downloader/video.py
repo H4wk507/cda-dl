@@ -34,9 +34,13 @@ class Video:
         self.headers = headers
         self.session = session
 
-    async def download_video(self) -> None:
+    async def download_video(self, overwrite: bool) -> None:
         await self.initialize()
-        await self.stream_data()
+        if os.path.exists(self.filepath) and not overwrite:
+            print(f"Plik '{self.title}.mp4' już istnieje, pomijam ...")
+        else:
+            self.make_directory()
+            await self.stream_file()
 
     async def initialize(self) -> None:
         """Initialize members required to download the Video."""
@@ -51,7 +55,6 @@ class Video:
         self.size = self.get_size()
         self.title = self.get_title()
         self.filepath = self.get_filepath()
-        self.make_directory()
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
@@ -126,7 +129,7 @@ class Video:
     def make_directory(self) -> None:
         Path(self.directory).mkdir(parents=True, exist_ok=True)
 
-    async def stream_data(self) -> None:
+    async def stream_file(self) -> None:
         block_size = 1024
         file = f"{self.title}.mp4 [{self.resolution}]"
         async with aiofiles.open(self.filepath, "wb") as f:

@@ -38,19 +38,22 @@ class Folder:
         else:
             return self.url + "1/"
 
-    async def download_folder(self, semaphore: asyncio.Semaphore) -> None:
+    async def download_folder(
+        self, semaphore: asyncio.Semaphore, overwrite: bool
+    ) -> None:
         """Recursively download all videos and subfolders of the folder."""
-        self.semaphore = semaphore
         self.soup = await self.get_soup()
         await self.make_directory()
         self.folders = await self.get_subfolders()
         if len(self.folders) > 0:
-            await self.download_subfolders()
+            await self.download_subfolders(semaphore, overwrite)
         self.videos = await self.get_videos_from_folder()
         if len(self.videos) > 0:
-            await self.download_videos_from_folder()
+            await self.download_videos_from_folder(semaphore, overwrite)
 
-    async def download_subfolders(self) -> None:
+    async def download_subfolders(
+        self, semaphore: asyncio.Semaphore, overwrite: bool
+    ) -> None:
         """Download all subfolders of the folder."""
         for folder in tqdm(
             self.folders,
@@ -59,7 +62,7 @@ class Folder:
             unit="FOLDER",
             leave=False,
         ):
-            await folder.download_folder(self.semaphore)
+            await folder.download_folder(semaphore, overwrite)
 
     async def get_soup(self) -> BeautifulSoup:
         async with self.session.get(
@@ -102,12 +105,14 @@ class Folder:
         ]
         return folders
 
-    async def download_videos_from_folder(self) -> None:
+    async def download_videos_from_folder(
+        self, semaphore: asyncio.Semaphore, overwrite: bool
+    ) -> None:
         """Download all videos from the folder."""
 
         async def wrapper(video: Video) -> None:
-            async with self.semaphore:
-                await video.download_video()
+            async with semaphore:
+                await video.download_video(overwrite)
 
         tasks = [asyncio.create_task(wrapper(video)) for video in self.videos]
         await tqdm.gather(
