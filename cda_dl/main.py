@@ -1,8 +1,9 @@
 import argparse
-import os, sys
+import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cda_downloader.downloader import Downloader
+from cda_dl.downloader import Downloader
 
 
 def parse_args(args: list[str]) -> argparse.Namespace:
@@ -48,9 +49,13 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
+def main() -> None:
+    my_args = parse_args(sys.argv[1:])
+    Downloader(my_args)
+
+
 if __name__ == "__main__":
-    args = parse_args(sys.argv[1:])
-    Downloader(args)
+    main()
 
 
 # TODO: partial files for easier resuming the download

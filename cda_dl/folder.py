@@ -1,18 +1,23 @@
 from __future__ import annotations
-import os
+
 import asyncio
-import aiohttp
-from tqdm.asyncio import tqdm
+import os
+import sys
 from pathlib import Path
+
+import aiohttp
 from bs4 import BeautifulSoup
-from cda_downloader.video import Video
-from cda_downloader.utils import get_safe_title, get_folder_match
+from tqdm.asyncio import tqdm
+
+from cda_dl.utils import get_folder_match, get_safe_title
+from cda_dl.video import Video
 
 
 class Folder:
     title: str
     videos: list[Video]
     folders: list[Folder]
+    soup: BeautifulSoup
 
     def __init__(
         self,
@@ -33,10 +38,7 @@ class Folder:
         if not self.url.endswith("/"):
             self.url += "/"
         match = get_folder_match(self.url)
-        if match and match.group(2):
-            return self.url
-        else:
-            return self.url + "1/"
+        return self.url if match and match.group(2) else self.url + "1/"
 
     async def download_folder(
         self, semaphore: asyncio.Semaphore, overwrite: bool
@@ -84,7 +86,7 @@ class Folder:
                 "span", class_="folder-one-line"
             )[-1]
         except IndexError:
-            exit("Error podczas parsowania 'folder title'")
+            sys.exit("Error podczas parsowania 'folder title'")
         title = title_wrapper.find("a", href=True).text
         return get_safe_title(title)
 

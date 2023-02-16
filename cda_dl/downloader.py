@@ -1,10 +1,13 @@
-import os
-import asyncio
-import aiohttp
 import argparse
-from cda_downloader.utils import is_video, is_folder
-from cda_downloader.video import Video
-from cda_downloader.folder import Folder
+import asyncio
+import os
+import sys
+
+import aiohttp
+
+from cda_dl.folder import Folder
+from cda_dl.utils import is_folder, is_video
+from cda_dl.video import Video
 
 
 class Downloader:
@@ -64,13 +67,13 @@ class Downloader:
                 for res in resolutions:
                     print(res)
             elif is_folder(url):
-                exit(
+                sys.exit(
                     f"Flaga -R jest dostępna tylko dla filmów. {url} jest"
                     " folderem!"
                 )
             else:
-                exit(f"Nie rozpoznano adresu url: {url}")
-        exit()
+                sys.exit(f"Nie rozpoznano adresu url: {url}")
+        sys.exit()
 
     async def handle_r_flag(self, session: aiohttp.ClientSession) -> None:
         for url in self.urls:
@@ -89,12 +92,12 @@ class Downloader:
                     v.resolutions = await v.get_resolutions()
                     v.check_resolution()
                 elif is_folder(url):
-                    exit(
+                    sys.exit(
                         f"Flaga -r jest dostępna tylko dla filmów. {url} jest"
                         " folderem!"
                     )
                 else:
-                    exit(f"Nie rozpoznano adresu url: {url}")
+                    sys.exit(f"Nie rozpoznano adresu url: {url}")
 
     def get_urls(self) -> tuple[list[str], list[str]]:
         video_urls: list[str] = []

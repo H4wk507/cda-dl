@@ -1,20 +1,24 @@
-import os
 import json
-from tqdm.asyncio import tqdm
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
 import aiofiles
 import aiohttp
-from pathlib import Path
-from bs4.element import Tag
 from bs4 import BeautifulSoup
-from typing import Any
-from cda_downloader.utils import get_safe_title, get_video_match, decrypt_url
+from bs4.element import Tag
+from tqdm.asyncio import tqdm
+
+from cda_dl.utils import decrypt_url, get_safe_title, get_video_match
 
 
 class Video:
     video_id: str
     resolutions: list[str]
     video_soup: BeautifulSoup
-    video_info: dict[str, Any]
+    video_info: Any
+    file: str
     video_stream: aiohttp.ClientResponse
     size: int
     title: str
@@ -69,13 +73,13 @@ class Video:
             text = await response.text()
         return BeautifulSoup(text, "html.parser")
 
-    async def get_video_info(self) -> dict[str, Any]:
+    async def get_video_info(self) -> Any:
         """Get Video info from the url."""
         media_player = self.video_soup.find(
             "div", {"id": f"mediaplayer{self.video_id}"}
         )
         if not isinstance(media_player, Tag):
-            exit("Error podczas parsowania 'media player'")
+            sys.exit("Error podczas parsowania 'media player'")
         player_data = json.loads(media_player.attrs["player_data"])
         return player_data["video"]
 
@@ -100,7 +104,7 @@ class Video:
     def check_resolution(self) -> None:
         """Check if resolution is correct."""
         if not self.is_valid_resolution():
-            exit(
+            sys.exit(
                 f"{self.resolution} rozdzielczość nie jest dostępna dla"
                 f" {self.url}"
             )
@@ -119,7 +123,7 @@ class Video:
     def get_title(self) -> str:
         title_tag = self.video_soup.find("h1")
         if not isinstance(title_tag, Tag):
-            exit("Error podczas parsowania 'title'")
+            sys.exit("Error podczas parsowania 'title'")
         title = title_tag.text.strip("\n")
         return get_safe_title(title)
 
@@ -131,13 +135,13 @@ class Video:
 
     async def stream_file(self) -> None:
         block_size = 1024
-        file = f"{self.title}.mp4 [{self.resolution}]"
+        filename = f"{self.title}.mp4 [{self.resolution}]"
         async with aiofiles.open(self.filepath, "wb") as f:
             with tqdm(
                 total=self.size,
                 unit="iB",
                 unit_scale=True,
-                desc=file,
+                desc=filename,
                 leave=False,
             ) as pbar:
                 async for chunk in self.video_stream.content.iter_chunked(

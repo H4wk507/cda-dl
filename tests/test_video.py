@@ -1,12 +1,13 @@
 import json
 import os
-import pytest
-from aiohttp import ClientSession
 import sys
 from typing import TypedDict, cast
 
+import pytest
+from aiohttp import ClientSession
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cda_downloader.video import Video
+from cda_dl.video import Video
 
 
 class _Video(TypedDict):

@@ -61,5 +61,4 @@ def decrypt_url(url: str) -> str:
     if "/upstream" in a:
         a = a.replace("/upstream", ".mp4/upstream")
         return "https://" + a
-    else:
-        return "https://" + a + ".mp4"
+    return "https://" + a + ".mp4"
