@@ -9,7 +9,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 from tqdm.asyncio import tqdm
 
-from cda_dl.utils import get_folder_match, get_safe_title
+from cda_dl.utils import get_folder_match, get_request, get_safe_title
 from cda_dl.video import Video
 
 
@@ -23,14 +23,16 @@ class Folder:
         self,
         url: str,
         directory: str,
-        headers: dict[str, str],
         session: aiohttp.ClientSession,
     ) -> None:
         self.url = url
         self.url = self.get_adjusted_url()
         self.directory = directory
-        self.headers = headers
         self.session = session
+        self.headers = {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+        }
 
     def get_adjusted_url(self) -> str:
         """If the url has no page specified, add /1/ at the
@@ -67,10 +69,8 @@ class Folder:
             await folder.download_folder(semaphore, overwrite)
 
     async def get_soup(self) -> BeautifulSoup:
-        async with self.session.get(
-            self.url, headers=self.headers
-        ) as response:
-            text = await response.text()
+        response = await get_request(self.url, self.session, self.headers)
+        text = await response.text()
         soup = BeautifulSoup(text, "html.parser")
         return soup
 
@@ -96,12 +96,7 @@ class Folder:
             "a", href=True, class_="object-folder"
         )
         folders = [
-            Folder(
-                folder["href"],
-                self.directory,
-                self.headers,
-                self.session,
-            )
+            Folder(folder["href"], self.directory, self.session)
             for folder in folders_soup
             if "data-foldery_id" in folder.attrs
         ]
@@ -138,10 +133,8 @@ class Folder:
 
     async def get_videos_from_current_page(self) -> list[Video]:
         """Get all videos from the current page."""
-        async with self.session.get(
-            self.url, headers=self.headers
-        ) as response:
-            text = await response.text()
+        response = await get_request(self.url, self.session, self.headers)
+        text = await response.text()
         page_soup = BeautifulSoup(text, "html.parser")
         videos_soup = page_soup.find_all(
             "a", href=True, class_="thumbnail-link"
@@ -151,7 +144,6 @@ class Folder:
                 "https://www.cda.pl" + video["href"],
                 self.directory,
                 "najlepsza",
-                self.headers,
                 self.session,
             )
             for video in videos_soup

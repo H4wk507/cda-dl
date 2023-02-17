@@ -32,15 +32,12 @@ def get_test_data() -> list[_Folder]:
 
 
 FOLDERS = get_test_data()
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-}
 
 
 def test_get_adjusted_url() -> None:
     for folder in FOLDERS:
         # get_adjusted_url is called in the Folder constructor
-        f = Folder(folder["url"], ".", HEADERS, cast(ClientSession, None))
+        f = Folder(folder["url"], ".", cast(ClientSession, None))
         assert f.url == folder["adjusted_url"]
 
 
@@ -49,14 +46,14 @@ async def test_get_folder_title() -> None:
     # last 3 folders are incorrect so we can't get title out of them
     for folder in FOLDERS[:-3]:
         async with ClientSession() as session:
-            f = Folder(folder["url"], ".", HEADERS, session)
+            f = Folder(folder["url"], ".", session)
             f.soup = await f.get_soup()
             assert await f.get_folder_title() == folder["title"]
 
 
 def test_get_next_page() -> None:
     for folder in FOLDERS:
-        f = Folder(folder["url"], ".", HEADERS, cast(ClientSession, None))
+        f = Folder(folder["url"], ".", cast(ClientSession, None))
         assert f.get_next_page() == folder["next_page_url"]
 
 
@@ -64,7 +61,7 @@ def test_get_next_page() -> None:
 async def test_get_videos_from_folder() -> None:
     for folder in FOLDERS:
         async with ClientSession() as session:
-            f = Folder(folder["url"], ".", HEADERS, session)
+            f = Folder(folder["url"], ".", session)
             assert len(await f.get_videos_from_folder()) == folder["nvideos"]
 
 
@@ -72,6 +69,6 @@ async def test_get_videos_from_folder() -> None:
 async def test_get_subfolders() -> None:
     for folder in FOLDERS:
         async with ClientSession() as session:
-            f = Folder(folder["url"], ".", HEADERS, session)
+            f = Folder(folder["url"], ".", session)
             f.soup = await f.get_soup()
             assert len(await f.get_subfolders()) == folder["nsubfolders"]

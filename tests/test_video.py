@@ -31,16 +31,11 @@ def get_test_data() -> list[_Video]:
 
 
 VIDEOS = get_test_data()
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-}
 
 
 def test_get_videoid() -> None:
     for video in VIDEOS:
-        v = Video(
-            video["url"], ".", "najlepsza", HEADERS, cast(ClientSession, None)
-        )
+        v = Video(video["url"], ".", "najlepsza", cast(ClientSession, None))
         assert v.get_videoid() == video["videoid"]
 
 
@@ -48,7 +43,7 @@ def test_get_videoid() -> None:
 async def test_get_resolutions() -> None:
     for video in VIDEOS:
         async with ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", HEADERS, session)
+            v = Video(video["url"], ".", "najlepsza", session)
             v.video_id = v.get_videoid()
             v.video_soup = await v.get_video_soup()
             v.video_info = await v.get_video_info()
@@ -59,7 +54,7 @@ async def test_get_resolutions() -> None:
 async def test_get_adjusted_resolution() -> None:
     for video in VIDEOS:
         async with ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", HEADERS, session)
+            v = Video(video["url"], ".", "najlepsza", session)
             v.video_id = v.get_videoid()
             v.video_soup = await v.get_video_soup()
             v.video_info = await v.get_video_info()
@@ -72,7 +67,7 @@ async def test_check_resolution() -> None:
     # Slice cause too many requests
     for video in VIDEOS[:2]:
         async with ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", HEADERS, session)
+            v = Video(video["url"], ".", "najlepsza", session)
             v.video_id = v.get_videoid()
             v.video_soup = await v.get_video_soup()
             v.video_info = await v.get_video_info()

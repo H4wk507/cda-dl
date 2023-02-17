@@ -1,11 +1,11 @@
 # cda-dl
 
-CLI downloader do filmów i folderów z <a href="https://www.cda.pl/" target="blank">cda.pl</a>
+CLI downloader do filmów i folderów z [cda.pl](https://www.cda.pl/)
 
 ## Instalacja
 
-1. Pobierz <a href=https://www.python.org/downloads/ target="_blank">Pythona</a>
-1. Sklonuj repozytorium
+1. Pobierz [Pythona](https://www.python.org/downloads/)
+2. Sklonuj repozytorium
 
 ```
 git clone https://github.com/H4wk507/cda-dl.git

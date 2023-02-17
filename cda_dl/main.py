@@ -59,8 +59,6 @@ if __name__ == "__main__":
 
 
 # TODO: partial files for easier resuming the download
-# TODO: add setup.py file for installing
-# TODO: write README.md in polish
 # TODO: resume folder download if it was previously cancelled
 # TODO: maybe support for premium videos on login?
 # TODO: better error handling

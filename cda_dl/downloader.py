@@ -14,7 +14,6 @@ class Downloader:
     urls: list[str]
     directory: str
     resolution: str
-    headers: dict[str, str]
     list_resolutions: bool
     session: aiohttp.ClientSession
     semaphore: asyncio.Semaphore
@@ -27,14 +26,11 @@ class Downloader:
         self.resolution = args.resolution
         self.list_resolutions = args.list_resolutions
         self.overwrite = args.overwrite
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-        }
         self.semaphore = asyncio.Semaphore(3)
         asyncio.run(self.main())
 
     async def main(self) -> None:
-        async with aiohttp.ClientSession(headers=self.headers) as session:
+        async with aiohttp.ClientSession() as session:
             await self.handle_flags(session)
             self.video_urls, self.folder_urls = self.get_urls()
             await self.download_folders(session)
@@ -57,7 +53,6 @@ class Downloader:
                     url,
                     self.directory,
                     self.resolution,
-                    self.headers,
                     session,
                 )
                 v.video_id = v.get_videoid()
@@ -83,7 +78,6 @@ class Downloader:
                         url,
                         self.directory,
                         self.resolution,
-                        self.headers,
                         session,
                     )
                     v.video_id = v.get_videoid()
@@ -117,7 +111,6 @@ class Downloader:
             await Folder(
                 folder_url,
                 self.directory,
-                self.headers,
                 session,
             ).download_folder(self.semaphore, self.overwrite)
 
@@ -128,7 +121,6 @@ class Downloader:
                     video_url,
                     self.directory,
                     self.resolution,
-                    self.headers,
                     session,
                 ).download_video(self.overwrite)
 

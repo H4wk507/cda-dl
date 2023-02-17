@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,12 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from tqdm.asyncio import tqdm
 
-from cda_dl.utils import decrypt_url, get_safe_title, get_video_match
+from cda_dl.utils import (
+    decrypt_url,
+    get_request,
+    get_safe_title,
+    get_video_match,
+)
 
 
 class Video:
@@ -29,14 +35,16 @@ class Video:
         url: str,
         directory: str,
         resolution: str,
-        headers: dict[str, str],
         session: aiohttp.ClientSession,
     ) -> None:
         self.url = url
         self.directory = directory
         self.resolution = resolution
-        self.headers = headers
         self.session = session
+        self.headers = {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+        }
 
     async def download_video(self, overwrite: bool) -> None:
         await self.initialize()
@@ -50,6 +58,16 @@ class Video:
         """Initialize members required to download the Video."""
         self.video_id = self.get_videoid()
         self.video_soup = await self.get_video_soup()
+        if re.search(
+            "Ten film jest dostępny dla użytkowników premium",
+            self.video_soup.text,
+        ):
+            sys.exit("Ten film jest dostępny tylko dla użytkowników premium")
+        if re.search(
+            r"niedostępn[ey] w(?:&nbsp;|\s+)Twoim kraju\s*",
+            self.video_soup.text,
+        ):
+            sys.exit("To wideo jest niedostępne w Twoim kraju")
         self.video_info = await self.get_video_info()
         self.resolutions = await self.get_resolutions()
         self.resolution = self.get_adjusted_resolution()
@@ -67,10 +85,8 @@ class Video:
         return match.group(1)
 
     async def get_video_soup(self) -> BeautifulSoup:
-        async with self.session.get(
-            self.url, headers=self.headers
-        ) as response:
-            text = await response.text()
+        response = await get_request(self.url, self.session, self.headers)
+        text = await response.text()
         return BeautifulSoup(text, "html.parser")
 
     async def get_video_info(self) -> Any:
@@ -113,7 +129,7 @@ class Video:
         return decrypt_url(self.video_info["file"])
 
     async def get_video_stream(self) -> aiohttp.ClientResponse:
-        video_stream = await self.session.get(self.file, headers=self.headers)
+        video_stream = await get_request(self.file, self.session, self.headers)
         return video_stream
 
     def get_size(self) -> int:
