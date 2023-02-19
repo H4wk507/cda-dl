@@ -58,7 +58,7 @@ if __name__ == "__main__":
     main()
 
 
+# TODO: add raise_for_status() to all requests
 # TODO: partial files for easier resuming the download
-# TODO: resume folder download if it was previously cancelled
 # TODO: maybe support for premium videos on login?
 # TODO: better error handling

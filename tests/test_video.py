@@ -7,6 +7,7 @@ import pytest
 from aiohttp import ClientSession
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from cda_dl.error import GeoBlockedError, LoginRequiredError, ResolutionError
 from cda_dl.video import Video
 
 
@@ -75,10 +76,41 @@ async def test_check_resolution() -> None:
             for res in video["invalid_resolutions"]:
                 v.resolution = res
                 with pytest.raises(
-                    SystemExit,
+                    ResolutionError,
                     match=(
                         f"{v.resolution} rozdzielczość nie jest dostępna dla"
                         f" {v.url}"
                     ),
                 ):
                     v.check_resolution()
+
+
+@pytest.mark.asyncio
+async def test_premium_video() -> None:
+    url = "https://www.cda.pl/video/63289011/vfilm"
+    async with ClientSession() as session:
+        v = Video(url, ".", "najlepsza", session)
+        with pytest.raises(
+            LoginRequiredError,
+            match=(
+                "Ten film jest dostępny tylko dla użytkowników premium."
+                " Pomijam ..."
+            ),
+        ):
+            v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.check_premium()
+
+
+@pytest.mark.asyncio
+async def test_geoblocked() -> None:
+    url = "https://www.cda.pl/video/124097194d/vfilm"
+    async with ClientSession() as session:
+        v = Video(url, ".", "najlepsza", session)
+        with pytest.raises(
+            GeoBlockedError,
+            match="To wideo jest niedostępne w Twoim kraju. Pomijam ...",
+        ):
+            v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.check_geolocation()

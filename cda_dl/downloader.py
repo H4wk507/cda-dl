@@ -1,13 +1,20 @@
 import argparse
 import asyncio
+import logging
 import os
 import sys
 
 import aiohttp
 
+from cda_dl.error import (FlagError, GeoBlockedError, LoginRequiredError,
+                          ParserError, ResolutionError)
 from cda_dl.folder import Folder
 from cda_dl.utils import is_folder, is_video
 from cda_dl.video import Video
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+LOGGER.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class Downloader:
@@ -15,7 +22,7 @@ class Downloader:
     directory: str
     resolution: str
     list_resolutions: bool
-    session: aiohttp.ClientSession
+    overwrite: bool
     semaphore: asyncio.Semaphore
 
     def __init__(self, args: argparse.Namespace) -> None:
@@ -31,11 +38,15 @@ class Downloader:
 
     async def main(self) -> None:
         async with aiohttp.ClientSession() as session:
-            await self.handle_flags(session)
-            self.video_urls, self.folder_urls = self.get_urls()
-            await self.download_folders(session)
-            await self.download_videos(session)
-        print("\nSkończono pobieranie wszystkich plików.")
+            try:
+                await self.handle_flags(session)
+            except (FlagError, ResolutionError) as e:
+                LOGGER.error(e)
+            else:
+                self.video_urls, self.folder_urls = self.get_urls()
+                await self.download_folders(session)
+                await self.download_videos(session)
+                LOGGER.info("Skończono pobieranie wszystkich plików.")
 
     async def handle_flags(self, session: aiohttp.ClientSession) -> None:
         if self.list_resolutions:
@@ -48,7 +59,7 @@ class Downloader:
         """List available resolutions for a video and exit."""
         for url in self.urls:
             if is_video(url):
-                print(f"Dostępne rozdzielczości dla {url}:")
+                LOGGER.info(f"Dostępne rozdzielczości dla {url}:")
                 v = Video(
                     url,
                     self.directory,
@@ -60,15 +71,15 @@ class Downloader:
                 v.video_info = await v.get_video_info()
                 resolutions = await v.get_resolutions()
                 for res in resolutions:
-                    print(res)
+                    LOGGER.info(res)
             elif is_folder(url):
-                sys.exit(
+                LOGGER.warning(
                     f"Flaga -R jest dostępna tylko dla filmów. {url} jest"
                     " folderem!"
                 )
             else:
-                sys.exit(f"Nie rozpoznano adresu url: {url}")
-        sys.exit()
+                LOGGER.warning(f"Nie rozpoznano adresu url: {url}")
+            sys.exit()
 
     async def handle_r_flag(self, session: aiohttp.ClientSession) -> None:
         for url in self.urls:
@@ -86,12 +97,12 @@ class Downloader:
                     v.resolutions = await v.get_resolutions()
                     v.check_resolution()
                 elif is_folder(url):
-                    sys.exit(
+                    raise FlagError(
                         f"Flaga -r jest dostępna tylko dla filmów. {url} jest"
                         " folderem!"
                     )
                 else:
-                    sys.exit(f"Nie rozpoznano adresu url: {url}")
+                    raise FlagError(f"Nie rozpoznano adresu url: {url}")
 
     def get_urls(self) -> tuple[list[str], list[str]]:
         video_urls: list[str] = []
@@ -102,27 +113,37 @@ class Downloader:
             elif is_folder(url):
                 folder_urls.append(url)
             else:
-                print(f"Nie rozpoznano adresu url: {url}")
+                LOGGER.warning(f"Nie rozpoznano adresu url: {url}")
         return video_urls, folder_urls
 
-    # TODO: pass whole args.namespace to Folder and Video??
     async def download_folders(self, session: aiohttp.ClientSession) -> None:
         for folder_url in self.folder_urls:
-            await Folder(
-                folder_url,
-                self.directory,
-                session,
-            ).download_folder(self.semaphore, self.overwrite)
+            try:
+                await Folder(
+                    folder_url,
+                    self.directory,
+                    session,
+                ).download_folder(self.semaphore, self.overwrite)
+            except ParserError as e:
+                LOGGER.warning(e)
 
     async def download_videos(self, session: aiohttp.ClientSession) -> None:
         async def wrapper(video_url: str) -> None:
             async with self.semaphore:
-                await Video(
-                    video_url,
-                    self.directory,
-                    self.resolution,
-                    session,
-                ).download_video(self.overwrite)
+                try:
+                    await Video(
+                        video_url,
+                        self.directory,
+                        self.resolution,
+                        session,
+                    ).download_video(self.overwrite)
+                except (
+                    LoginRequiredError,
+                    GeoBlockedError,
+                    ResolutionError,
+                    ParserError,
+                ) as e:
+                    LOGGER.warning(e)
 
         tasks = [
             asyncio.create_task(wrapper(video_url))

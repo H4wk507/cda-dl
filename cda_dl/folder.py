@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
 from pathlib import Path
@@ -9,8 +10,13 @@ import aiohttp
 from bs4 import BeautifulSoup
 from tqdm.asyncio import tqdm
 
+from cda_dl.error import ParserError
 from cda_dl.utils import get_folder_match, get_request, get_safe_title
 from cda_dl.video import Video
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+LOGGER.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class Folder:
@@ -47,6 +53,7 @@ class Folder:
     ) -> None:
         """Recursively download all videos and subfolders of the folder."""
         self.soup = await self.get_soup()
+        self.title = await self.get_folder_title()
         await self.make_directory()
         self.folders = await self.get_subfolders()
         if len(self.folders) > 0:
@@ -76,7 +83,6 @@ class Folder:
 
     async def make_directory(self) -> None:
         """Make directory for the folder."""
-        self.title = await self.get_folder_title()
         self.directory = os.path.join(self.directory, self.title)
         Path(self.directory).mkdir(parents=True, exist_ok=True)
 
@@ -86,7 +92,10 @@ class Folder:
                 "span", class_="folder-one-line"
             )[-1]
         except IndexError:
-            sys.exit("Error podczas parsowania 'folder title'")
+            raise ParserError(
+                f"Error podczas parsowania 'folder title' dla {self.url}."
+                " Pomijam ..."
+            )
         title = title_wrapper.find("a", href=True).text
         return get_safe_title(title)
 

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import sys
@@ -11,12 +12,14 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from tqdm.asyncio import tqdm
 
-from cda_dl.utils import (
-    decrypt_url,
-    get_request,
-    get_safe_title,
-    get_video_match,
-)
+from cda_dl.error import (GeoBlockedError, LoginRequiredError, ParserError,
+                          ResolutionError)
+from cda_dl.utils import (decrypt_url, get_request, get_safe_title,
+                          get_video_match)
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
+LOGGER.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class Video:
@@ -49,7 +52,7 @@ class Video:
     async def download_video(self, overwrite: bool) -> None:
         await self.initialize()
         if os.path.exists(self.filepath) and not overwrite:
-            print(f"Plik '{self.title}.mp4' już istnieje, pomijam ...")
+            LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
         else:
             self.make_directory()
             await self.stream_file()
@@ -58,16 +61,8 @@ class Video:
         """Initialize members required to download the Video."""
         self.video_id = self.get_videoid()
         self.video_soup = await self.get_video_soup()
-        if re.search(
-            "Ten film jest dostępny dla użytkowników premium",
-            self.video_soup.text,
-        ):
-            sys.exit("Ten film jest dostępny tylko dla użytkowników premium")
-        if re.search(
-            r"niedostępn[ey] w(?:&nbsp;|\s+)Twoim kraju\s*",
-            self.video_soup.text,
-        ):
-            sys.exit("To wideo jest niedostępne w Twoim kraju")
+        self.check_premium()
+        self.check_geolocation()
         self.video_info = await self.get_video_info()
         self.resolutions = await self.get_resolutions()
         self.resolution = self.get_adjusted_resolution()
@@ -75,7 +70,7 @@ class Video:
         self.file = await self.get_file()
         self.video_stream = await self.get_video_stream()
         self.size = self.get_size()
-        self.title = self.get_title()
+        self.title = self.get_video_title()
         self.filepath = self.get_filepath()
 
     def get_videoid(self) -> str:
@@ -89,13 +84,34 @@ class Video:
         text = await response.text()
         return BeautifulSoup(text, "html.parser")
 
+    def check_premium(self) -> None:
+        if re.search(
+            "Ten film jest dostępny dla użytkowników premium",
+            self.video_soup.text,
+        ):
+            raise LoginRequiredError(
+                "Ten film jest dostępny tylko dla użytkowników premium."
+                " Pomijam ..."
+            )
+
+    def check_geolocation(self) -> None:
+        if re.search(
+            r"niedostępn[ey] w(?:&nbsp;|\s+)Twoim kraju\s*",
+            self.video_soup.text,
+        ):
+            raise GeoBlockedError(
+                "To wideo jest niedostępne w Twoim kraju. Pomijam ..."
+            )
+
     async def get_video_info(self) -> Any:
         """Get Video info from the url."""
         media_player = self.video_soup.find(
             "div", {"id": f"mediaplayer{self.video_id}"}
         )
         if not isinstance(media_player, Tag):
-            sys.exit("Error podczas parsowania 'media player'")
+            raise ParserError(
+                "Error podczas parsowania 'media player'. Pomijam ..."
+            )
         player_data = json.loads(media_player.attrs["player_data"])
         return player_data["video"]
 
@@ -120,7 +136,7 @@ class Video:
     def check_resolution(self) -> None:
         """Check if resolution is correct."""
         if not self.is_valid_resolution():
-            sys.exit(
+            raise ResolutionError(
                 f"{self.resolution} rozdzielczość nie jest dostępna dla"
                 f" {self.url}"
             )
@@ -136,10 +152,12 @@ class Video:
         """Get Video size in KiB."""
         return int(self.video_stream.headers.get("content-length", 0))
 
-    def get_title(self) -> str:
+    def get_video_title(self) -> str:
         title_tag = self.video_soup.find("h1")
         if not isinstance(title_tag, Tag):
-            sys.exit("Error podczas parsowania 'title'")
+            raise ParserError(
+                "Error podczas parsowania 'video title'. Pomijam ..."
+            )
         title = title_tag.text.strip("\n")
         return get_safe_title(title)
 
