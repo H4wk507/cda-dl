@@ -9,6 +9,8 @@ clean-cache:
 	\) -prune -exec rm -rf {} \;
 
 codetest:
+	isort .
+	black --line-length 79 --preview .
 	flake8 .
 	mypy .
 

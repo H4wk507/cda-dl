@@ -12,10 +12,18 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from tqdm.asyncio import tqdm
 
-from cda_dl.error import (GeoBlockedError, LoginRequiredError, ParserError,
-                          ResolutionError)
-from cda_dl.utils import (decrypt_url, get_request, get_safe_title,
-                          get_video_match)
+from cda_dl.error import (
+    GeoBlockedError,
+    LoginRequiredError,
+    ParserError,
+    ResolutionError,
+)
+from cda_dl.utils import (
+    decrypt_url,
+    get_request,
+    get_safe_title,
+    get_video_match,
+)
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)

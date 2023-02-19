@@ -4,6 +4,8 @@ import urllib.parse
 
 import aiohttp
 
+from cda_dl.error import HTTPError
+
 
 def get_video_match(url: str) -> re.Match[str] | None:
     video_regex = re.compile(
@@ -110,4 +112,10 @@ async def get_request(
 ) -> aiohttp.ClientResponse:
     """Get request with random user agent."""
     headers["User-Agent"] = get_random_agent()
-    return await session.get(url, headers=headers)
+    try:
+        response = await session.get(url, headers=headers)
+        response.raise_for_status()
+    except aiohttp.ClientResponseError as e:
+        raise HTTPError(f"HTTP error [{e.status}]: {e.message}. Pomijam ...")
+    else:
+        return response

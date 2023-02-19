@@ -16,3 +16,7 @@ class ResolutionError(Exception):
 
 class LoginRequiredError(Exception):
     pass
+
+
+class HTTPError(Exception):
+    pass

@@ -6,8 +6,14 @@ import sys
 
 import aiohttp
 
-from cda_dl.error import (FlagError, GeoBlockedError, LoginRequiredError,
-                          ParserError, ResolutionError)
+from cda_dl.error import (
+    FlagError,
+    GeoBlockedError,
+    HTTPError,
+    LoginRequiredError,
+    ParserError,
+    ResolutionError,
+)
 from cda_dl.folder import Folder
 from cda_dl.utils import is_folder, is_video
 from cda_dl.video import Video
@@ -124,7 +130,7 @@ class Downloader:
                     self.directory,
                     session,
                 ).download_folder(self.semaphore, self.overwrite)
-            except ParserError as e:
+            except (ParserError, HTTPError) as e:
                 LOGGER.warning(e)
 
     async def download_videos(self, session: aiohttp.ClientSession) -> None:
@@ -142,6 +148,7 @@ class Downloader:
                     GeoBlockedError,
                     ResolutionError,
                     ParserError,
+                    HTTPError,
                 ) as e:
                     LOGGER.warning(e)
 

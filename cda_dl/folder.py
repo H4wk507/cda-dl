@@ -10,7 +10,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 from tqdm.asyncio import tqdm
 
-from cda_dl.error import ParserError
+from cda_dl.error import HTTPError, ParserError
 from cda_dl.utils import get_folder_match, get_request, get_safe_title
 from cda_dl.video import Video
 
@@ -133,8 +133,9 @@ class Folder:
         """Get all videos from the folder."""
         all_videos: list[Video] = []
         while True:
-            videos = await self.get_videos_from_current_page()
-            if len(videos) == 0:
+            try:
+                videos = await self.get_videos_from_current_page()
+            except HTTPError:
                 break
             all_videos.extend(videos)
             self.url = self.get_next_page()

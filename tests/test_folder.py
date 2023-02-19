@@ -43,8 +43,7 @@ def test_get_adjusted_url() -> None:
 
 @pytest.mark.asyncio
 async def test_get_folder_title() -> None:
-    # last 3 folders are incorrect so we can't get title out of them
-    for folder in FOLDERS[:-3]:
+    for folder in FOLDERS:
         async with ClientSession() as session:
             f = Folder(folder["url"], ".", session)
             f.soup = await f.get_soup()
