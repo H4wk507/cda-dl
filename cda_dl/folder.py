@@ -138,7 +138,7 @@ class Folder:
             except HTTPError:
                 break
             all_videos.extend(videos)
-            self.url = self.get_next_page()
+            self.url = self.get_next_page_url()
         return all_videos
 
     async def get_videos_from_current_page(self) -> list[Video]:
@@ -160,7 +160,7 @@ class Folder:
         ]
         return videos
 
-    def get_next_page(self) -> str:
+    def get_next_page_url(self) -> str:
         """Get next page of the folder."""
         match = get_folder_match(self.url)
         assert match
