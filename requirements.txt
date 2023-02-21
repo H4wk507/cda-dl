@@ -3,3 +3,4 @@ aiohttp
 asyncio
 bs4
 tqdm
+tenacity

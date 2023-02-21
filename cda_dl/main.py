@@ -58,7 +58,7 @@ if __name__ == "__main__":
     main()
 
 
-# TODO: maybe add retry decorator to retry n times on failure
+# TODO: better tests
 # TODO: partial files for easier resuming the download
 # TODO: maybe support for premium videos on login?
 # TODO: better error handling

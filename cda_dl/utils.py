@@ -3,6 +3,13 @@ import re
 import urllib.parse
 
 import aiohttp
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    stop_after_delay,
+    wait_fixed,
+)
 
 from cda_dl.error import HTTPError
 
@@ -107,6 +114,12 @@ def get_random_agent() -> str:
     return random.choice(USER_AGENTS)
 
 
+@retry(
+    retry=retry_if_exception_type(HTTPError),
+    wait=wait_fixed(1),
+    stop=(stop_after_attempt(3) | stop_after_delay(5)),
+    reraise=True,
+)
 async def get_request(
     url: str, session: aiohttp.ClientSession, headers: dict[str, str]
 ) -> aiohttp.ClientResponse:
