@@ -69,6 +69,9 @@ class Video:
         """Initialize members required to download the Video."""
         self.video_id = self.get_videoid()
         self.video_soup = await self.get_video_soup()
+        self.title = self.get_video_title()
+        self.filepath = self.get_filepath()
+        self.partial_filepath = self.get_partial_filepath()
         self.check_premium()
         self.check_geolocation()
         self.video_info = await self.get_video_info()
@@ -78,8 +81,6 @@ class Video:
         self.file = await self.get_file()
         self.video_stream = await self.get_video_stream()
         self.size = self.get_size()
-        self.title = self.get_video_title()
-        self.filepath = self.get_filepath()
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
@@ -91,6 +92,21 @@ class Video:
         response = await get_request(self.url, self.session, self.headers)
         text = await response.text()
         return BeautifulSoup(text, "html.parser")
+
+    def get_video_title(self) -> str:
+        title_tag = self.video_soup.find("h1")
+        if not isinstance(title_tag, Tag):
+            raise ParserError(
+                "Error podczas parsowania 'video title'. Pomijam ..."
+            )
+        title = title_tag.text.strip("\n")
+        return get_safe_title(title)
+
+    def get_filepath(self) -> str:
+        return os.path.join(self.directory, f"{self.title}.mp4")
+
+    def get_partial_filepath(self) -> str:
+        return f"{self.filepath}.part"
 
     def check_premium(self) -> None:
         if re.search(
@@ -153,6 +169,12 @@ class Video:
         return decrypt_url(self.video_info["file"])
 
     async def get_video_stream(self) -> aiohttp.ClientResponse:
+        range_num = None
+        if os.path.isfile(self.partial_filepath):
+            resume_point = os.path.getsize(self.partial_filepath)
+            range_num = f"bytes={resume_point}-"
+        if range_num:
+            self.headers["Range"] = range_num
         video_stream = await get_request(self.file, self.session, self.headers)
         return video_stream
 
@@ -160,30 +182,25 @@ class Video:
         """Get Video size in KiB."""
         return int(self.video_stream.headers.get("content-length", 0))
 
-    def get_video_title(self) -> str:
-        title_tag = self.video_soup.find("h1")
-        if not isinstance(title_tag, Tag):
-            raise ParserError(
-                "Error podczas parsowania 'video title'. Pomijam ..."
-            )
-        title = title_tag.text.strip("\n")
-        return get_safe_title(title)
-
-    def get_filepath(self) -> str:
-        return os.path.join(self.directory, f"{self.title}.mp4")
-
     def make_directory(self) -> None:
         Path(self.directory).mkdir(parents=True, exist_ok=True)
 
     async def stream_file(self) -> None:
         block_size = 1024
-        filename = f"{self.title}.mp4 [{self.resolution}]"
-        async with aiofiles.open(self.filepath, "wb") as f:
+        desc = f"{self.title}.mp4 [{self.resolution}]"
+        if os.path.isfile(self.filepath):
+            os.remove(self.filepath)
+        if os.path.isfile(self.partial_filepath):
+            start = os.path.getsize(self.partial_filepath)
+        else:
+            start = 0
+        async with aiofiles.open(self.partial_filepath, "ab") as f:
             with tqdm(
-                total=self.size,
+                total=start + self.size,
                 unit="iB",
+                initial=start,
                 unit_scale=True,
-                desc=filename,
+                desc=desc,
                 leave=False,
             ) as pbar:
                 async for chunk in self.video_stream.content.iter_chunked(
@@ -191,3 +208,4 @@ class Video:
                 ):
                     await f.write(chunk)
                     pbar.update(len(chunk))
+        os.rename(self.partial_filepath, self.filepath)
