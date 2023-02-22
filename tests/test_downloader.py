@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -13,59 +14,53 @@ from cda_dl.utils import is_folder, is_video
 LOGGER = logging.getLogger(__name__)
 
 
-VIDEO_URLS = [
-    "https://www.cda.pl/video/9122600a",
-    "https://www.cda.pl/video/70460839/",
-    "https://www.cda.pl/video/11051590f8/vfilm",
-    "https://www.cda.pl/video/11051590f8/vfilm/",
-    "https://ebd.cda.pl/1920x1080/9122600a",
-    "https://ebd.cda.pl/1920x1080/9122600a/",
+directory = os.path.abspath(os.path.dirname(__file__))
+VIDEO_DATA = json.load(open(os.path.join(directory, "video_data.json"), "r"))[
+    "videos"
 ]
-
-FOLDER_URLS = [
-    "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349",
-    "https://www.cda.pl/kreskowkatv/folder-glowny",
-    "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/",
-    "https://www.cda.pl/kreskowkatv/folder-glowny/",
-    "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/10",
-    "https://www.cda.pl/Pokemon_Odcinki_PL/folder/2397349/100/",
-]
+FOLDER_DATA = json.load(
+    open(os.path.join(directory, "folder_data.json"), "r")
+)["folders"]
 
 
 def test_is_video() -> None:
-    for url in VIDEO_URLS:
-        assert is_video(url) is True
+    for video in VIDEO_DATA:
+        assert is_video(video["url"]) is True
 
-    for url in FOLDER_URLS:
-        assert is_video(url) is False
+    for folder in FOLDER_DATA:
+        assert is_video(folder["url"]) is False
 
 
 def test_is_folder() -> None:
-    for url in VIDEO_URLS:
-        assert is_folder(url) is False
+    for video in VIDEO_DATA:
+        assert is_folder(video["url"]) is False
 
-    for url in FOLDER_URLS:
-        assert is_folder(url) is True
+    for folder in FOLDER_DATA:
+        assert is_folder(folder["url"]) is True
 
 
 def test_list_resolutions_and_exit_folder(caplog: Any) -> None:
-    for url in FOLDER_URLS:
-        args = parse_args(["-R", url])
+    for folder in FOLDER_DATA:
+        args = parse_args(["-R", folder["url"]])
         with pytest.raises(SystemExit, match=""):
             Downloader(args)
             assert (
                 "Flaga -R jest dostępna tylko dla filmów."
-                f" {url} jest folderem!"
+                f" {folder['url']} jest folderem!"
                 in caplog.text
             )
 
 
 def test_list_resolutions_and_exit_video(caplog: Any) -> None:
-    url = "https://www.cda.pl/video/9122600a"
-    args = parse_args(["-R", url])
-    with pytest.raises(SystemExit, match=""):
-        Downloader(args)
-        assert f"Dostępne rozdzielczości dla {url}:" in caplog.text
+    for video in VIDEO_DATA:
+        if not video["resolutions"]:
+            continue
+        args = parse_args(["-R", video["url"]])
+        with pytest.raises(SystemExit, match=""):
+            Downloader(args)
+            assert (
+                f"Dostępne rozdzielczości dla {video['url']}:" in caplog.text
+            )
 
 
 def test_list_resolutions_and_exit_unknown(caplog: Any) -> None:
@@ -77,25 +72,28 @@ def test_list_resolutions_and_exit_unknown(caplog: Any) -> None:
 
 
 def test_handle_r_flag_folder(caplog: Any) -> None:
-    for url in FOLDER_URLS:
+    for folder in FOLDER_DATA:
         res = "720p"
-        args = parse_args(["-r", res, url])
+        args = parse_args(["-r", res, folder["url"]])
         Downloader(args)
         assert (
-            f"Flaga -r jest dostępna tylko dla filmów. {url} jest folderem!"
+            f"Flaga -r jest dostępna tylko dla filmów. {folder['url']} jest"
+            " folderem!"
             in caplog.text
         )
 
 
 def test_handle_r_flag_video(caplog: Any) -> None:
-    url = "https://www.cda.pl/video/9122600a"
-    invalid_resolutions = ["144p", "360p", "720p"]
-    for res in invalid_resolutions:
-        args = parse_args(["-r", res, url])
-        Downloader(args)
-        assert (
-            f"{res} rozdzielczość nie jest dostępna dla {url}" in caplog.text
-        )
+    for video in VIDEO_DATA:
+        if not video["resolutions"]:
+            continue
+        for res in video["invalid_resolutions"]:
+            args = parse_args(["-r", res, video["url"]])
+            Downloader(args)
+            assert (
+                f"{res} rozdzielczość nie jest dostępna dla {video['url']}"
+                in caplog.text
+            )
 
 
 def test_handle_r_flag_unknown(caplog: Any) -> None:

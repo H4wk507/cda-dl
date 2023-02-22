@@ -6,50 +6,21 @@ import pytest
 from aiohttp import ClientSession
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import json
+
 from cda_dl.error import GeoBlockedError, LoginRequiredError, ResolutionError
 from cda_dl.video import Video
 
+directory = os.path.abspath(os.path.dirname(__file__))
+VIDEO_DATA = json.load(open(os.path.join(directory, "video_data.json"), "r"))[
+    "videos"
+]
+
 
 def test_get_videoid() -> None:
-    url = "https://www.cda.pl/video/9122600a"
-    videoid = "9122600a"
-    v = Video(url, ".", "najlepsza", cast(ClientSession, None))
-    assert v.get_videoid() == videoid
-
-
-def test_get_videoid_slash() -> None:
-    url = "https://www.cda.pl/video/9122600a/"
-    videoid = "9122600a"
-    v = Video(url, ".", "najlepsza", cast(ClientSession, None))
-    assert v.get_videoid() == videoid
-
-
-def test_get_videoid_ebd() -> None:
-    url = "https://ebd.cda.pl/1920x1080/546614af"
-    videoid = "546614af"
-    v = Video(url, ".", "najlepsza", cast(ClientSession, None))
-    assert v.get_videoid() == videoid
-
-
-def test_get_videoid_ebd_slash() -> None:
-    url = "https://ebd.cda.pl/1920x1080/546614af/"
-    videoid = "546614af"
-    v = Video(url, ".", "najlepsza", cast(ClientSession, None))
-    assert v.get_videoid() == videoid
-
-
-def test_get_videoid_premium_video() -> None:
-    url = "https://www.cda.pl/video/11051590f8/vfilm"
-    videoid = "11051590f8"
-    v = Video(url, ".", "najlepsza", cast(ClientSession, None))
-    assert v.get_videoid() == videoid
-
-
-def test_get_videoid_premium_video_slash() -> None:
-    url = "https://www.cda.pl/video/11051590f8/vfilm/"
-    videoid = "11051590f8"
-    v = Video(url, ".", "najlepsza", cast(ClientSession, None))
-    assert v.get_videoid() == videoid
+    for video in VIDEO_DATA:
+        v = Video(video["url"], ".", "najlepsza", cast(ClientSession, None))
+        assert v.get_videoid() == video["videoid"]
 
 
 @pytest.mark.asyncio
@@ -85,83 +56,62 @@ async def test_geoblocked() -> None:
 
 @pytest.mark.asyncio
 async def test_get_resolutions() -> None:
-    url = "https://www.cda.pl/video/546614af"
-    resolutions = ["360p", "480p", "720p"]
-    async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
-        v.video_id = v.get_videoid()
-        v.video_soup = await v.get_video_soup()
-        v.video_info = await v.get_video_info()
-        assert await v.get_resolutions() == resolutions
-
-
-@pytest.mark.asyncio
-async def test_get_resolutions_ebd() -> None:
-    url = "https://ebd.cda.pl/1920x1080/9122600a"
-    resolutions = ["480p"]
-    async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
-        v.video_id = v.get_videoid()
-        v.video_soup = await v.get_video_soup()
-        v.video_info = await v.get_video_info()
-        assert await v.get_resolutions() == resolutions
+    for video in VIDEO_DATA:
+        if not video["resolutions"]:
+            continue
+        async with ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", session)
+            v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.video_info = await v.get_video_info()
+            assert await v.get_resolutions() == video["resolutions"]
 
 
 @pytest.mark.asyncio
 async def test_get_adjusted_resolution() -> None:
-    url = "https://www.cda.pl/video/546614af"
-    adjusted_resolution = "720p"
-    async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
-        v.video_id = v.get_videoid()
-        v.video_soup = await v.get_video_soup()
-        v.video_info = await v.get_video_info()
-        v.resolutions = await v.get_resolutions()
-        assert v.get_adjusted_resolution() == adjusted_resolution
+    for video in VIDEO_DATA:
+        if not video["adjusted_resolution"]:
+            continue
+        async with ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", session)
+            v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.video_info = await v.get_video_info()
+            v.resolutions = await v.get_resolutions()
+            assert v.get_adjusted_resolution() == video["adjusted_resolution"]
 
 
 @pytest.mark.asyncio
 async def test_check_resolution() -> None:
-    url = "https://www.cda.pl/video/546614af"
-    invalid_resolutions = ["144p", "1080p"]
-    async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
-        v.video_id = v.get_videoid()
-        v.video_soup = await v.get_video_soup()
-        v.video_info = await v.get_video_info()
-        v.resolutions = await v.get_resolutions()
-        for res in invalid_resolutions:
-            v.resolution = res
-            with pytest.raises(
-                ResolutionError,
-                match=(
-                    f"{v.resolution} rozdzielczość nie jest dostępna dla"
-                    f" {v.url}"
-                ),
-            ):
-                v.check_resolution()
+    for video in VIDEO_DATA:
+        if not video["invalid_resolutions"]:
+            continue
+        async with ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", session)
+            v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            v.video_info = await v.get_video_info()
+            v.resolutions = await v.get_resolutions()
+            for res in video["invalid_resolutions"]:
+                v.resolution = res
+                with pytest.raises(
+                    ResolutionError,
+                    match=(
+                        f"{v.resolution} rozdzielczość nie jest dostępna dla"
+                        f" {v.url}"
+                    ),
+                ):
+                    v.check_resolution()
 
 
 @pytest.mark.asyncio
 async def test_get_video_title() -> None:
-    url = "https://www.cda.pl/video/546614af"
-    title = "Pokemon_Indigo_League_02_Ostry_dyżur_Pokemon"
-    async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
-        v.video_id = v.get_videoid()
-        v.video_soup = await v.get_video_soup()
-        assert v.get_video_title() == title
-
-
-@pytest.mark.asyncio
-async def test_get_video_title_ebd() -> None:
-    url = "https://ebd.cda.pl/1920x1080/546614af"
-    title = "Pokemon_Indigo_League_02_Ostry_dyżur_Pokemon"
-    async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
-        v.video_id = v.get_videoid()
-        v.video_soup = await v.get_video_soup()
-        assert v.get_video_title() == title
+    for video in VIDEO_DATA:
+        async with ClientSession() as session:
+            v = Video(video["url"], ".", "najlepsza", session)
+            v.video_id = v.get_videoid()
+            v.video_soup = await v.get_video_soup()
+            assert v.get_video_title() == video["title"]
 
 
 @pytest.mark.asyncio
@@ -175,7 +125,7 @@ async def test_download_video_overwrite() -> None:
 
 
 @pytest.mark.asyncio
-async def test_download_video(caplog: Any) -> None:
+async def test_download_video_no_overwrite(caplog: Any) -> None:
     url = "https://www.cda.pl/video/7779552a9"
     async with ClientSession() as session:
         v = Video(url, ".", "480p", session)

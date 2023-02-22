@@ -58,6 +58,5 @@ if __name__ == "__main__":
     main()
 
 
-# TODO: reformat tests
 # TODO: partial files for easier resuming the download
 # TODO: maybe support for premium videos on login?
