@@ -1,6 +1,7 @@
 .wdm/
 __pycache__/
 *.mp4
+*.part
 venv/
 *.swp
 *.egg-info/

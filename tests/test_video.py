@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -19,7 +20,9 @@ VIDEO_DATA = json.load(open(os.path.join(directory, "video_data.json"), "r"))[
 
 def test_get_videoid() -> None:
     for video in VIDEO_DATA:
-        v = Video(video["url"], ".", "najlepsza", cast(ClientSession, None))
+        v = Video(
+            video["url"], Path("."), "najlepsza", cast(ClientSession, None)
+        )
         assert v.get_videoid() == video["videoid"]
 
 
@@ -27,7 +30,7 @@ def test_get_videoid() -> None:
 async def test_premium_video() -> None:
     url = "https://www.cda.pl/video/63289011/vfilm"
     async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
+        v = Video(url, Path("."), "najlepsza", session)
         with pytest.raises(
             LoginRequiredError,
             match=(
@@ -44,7 +47,7 @@ async def test_premium_video() -> None:
 async def test_geoblocked() -> None:
     url = "https://www.cda.pl/video/124097194d/vfilm"
     async with ClientSession() as session:
-        v = Video(url, ".", "najlepsza", session)
+        v = Video(url, Path("."), "najlepsza", session)
         with pytest.raises(
             GeoBlockedError,
             match="To wideo jest niedostępne w Twoim kraju. Pomijam ...",
@@ -60,7 +63,7 @@ async def test_get_resolutions() -> None:
         if not video["resolutions"]:
             continue
         async with ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", session)
+            v = Video(video["url"], Path("."), "najlepsza", session)
             v.video_id = v.get_videoid()
             v.video_soup = await v.get_video_soup()
             v.video_info = await v.get_video_info()
@@ -73,7 +76,7 @@ async def test_get_adjusted_resolution() -> None:
         if not video["adjusted_resolution"]:
             continue
         async with ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", session)
+            v = Video(video["url"], Path("."), "najlepsza", session)
             v.video_id = v.get_videoid()
             v.video_soup = await v.get_video_soup()
             v.video_info = await v.get_video_info()
@@ -87,7 +90,7 @@ async def test_check_resolution() -> None:
         if not video["invalid_resolutions"]:
             continue
         async with ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", session)
+            v = Video(video["url"], Path("."), "najlepsza", session)
             v.video_id = v.get_videoid()
             v.video_soup = await v.get_video_soup()
             v.video_info = await v.get_video_info()
@@ -108,7 +111,7 @@ async def test_check_resolution() -> None:
 async def test_get_video_title() -> None:
     for video in VIDEO_DATA:
         async with ClientSession() as session:
-            v = Video(video["url"], ".", "najlepsza", session)
+            v = Video(video["url"], Path("."), "najlepsza", session)
             v.video_id = v.get_videoid()
             v.video_soup = await v.get_video_soup()
             assert v.get_video_title() == video["title"]
@@ -118,16 +121,16 @@ async def test_get_video_title() -> None:
 async def test_download_video_overwrite() -> None:
     url = "https://www.cda.pl/video/7779552a9"
     async with ClientSession() as session:
-        v = Video(url, ".", "480p", session)
+        v = Video(url, Path("."), "480p", session)
         await v.download_video(overwrite=True)
         s = os.stat(v.filepath)
-        assert s.st_size == v.size
+        assert s.st_size == v.remaining_size
 
 
 @pytest.mark.asyncio
 async def test_download_video_no_overwrite(caplog: Any) -> None:
     url = "https://www.cda.pl/video/7779552a9"
     async with ClientSession() as session:
-        v = Video(url, ".", "480p", session)
+        v = Video(url, Path("."), "480p", session)
         await v.download_video(overwrite=False)
         assert f"Plik '{v.title}.mp4' już istnieje. Pomijam ..." in caplog.text

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -28,7 +27,7 @@ class Folder:
     def __init__(
         self,
         url: str,
-        directory: str,
+        directory: Path,
         session: aiohttp.ClientSession,
     ) -> None:
         self.url = url
@@ -83,8 +82,8 @@ class Folder:
 
     async def make_directory(self) -> None:
         """Make directory for the folder."""
-        self.directory = os.path.join(self.directory, self.title)
-        Path(self.directory).mkdir(parents=True, exist_ok=True)
+        self.directory = Path(self.directory, self.title)
+        self.directory.mkdir(parents=True, exist_ok=True)
 
     async def get_folder_title(self) -> str:
         try:

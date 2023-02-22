@@ -1,7 +1,10 @@
 clean: clean-test clean-cache
 
 clean-test:
-	find . -type f -name "*.mp4" -exec rm -f {} \;
+	find . \( -type f -name "*.mp4" -o -type f -name "*.part" \) -exec rm -f {} \;
+	# purge empty directories
+	fd -te -td -X rm -rf
+	fd -te -td -X rm -rf
 
 clean-cache:
 	find . \( \

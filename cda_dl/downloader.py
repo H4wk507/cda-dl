@@ -1,8 +1,9 @@
 import argparse
 import asyncio
 import logging
-import os
 import sys
+from os import path
+from pathlib import Path
 
 import aiohttp
 
@@ -25,7 +26,7 @@ LOGGER.addHandler(logging.StreamHandler(sys.stdout))
 
 class Downloader:
     urls: list[str]
-    directory: str
+    directory: Path
     resolution: str
     list_resolutions: bool
     overwrite: bool
@@ -33,8 +34,8 @@ class Downloader:
 
     def __init__(self, args: argparse.Namespace) -> None:
         self.urls = [url.strip() for url in args.urls]
-        self.directory = os.path.abspath(
-            os.path.expanduser(os.path.expandvars(args.directory))
+        self.directory = Path(
+            path.abspath(path.expanduser(path.expandvars(args.directory)))
         )
         self.resolution = args.resolution
         self.list_resolutions = args.list_resolutions

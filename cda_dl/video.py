@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import re
 import sys
 from pathlib import Path
@@ -37,14 +36,16 @@ class Video:
     video_info: Any
     file: str
     video_stream: aiohttp.ClientResponse
-    size: int
+    remaining_size: int
     title: str
-    filepath: str
+    filepath: Path
+    partial_filepath: Path
+    resume_point: int
 
     def __init__(
         self,
         url: str,
-        directory: str,
+        directory: Path,
         resolution: str,
         session: aiohttp.ClientSession,
     ) -> None:
@@ -59,7 +60,7 @@ class Video:
 
     async def download_video(self, overwrite: bool) -> None:
         await self.initialize()
-        if os.path.exists(self.filepath) and not overwrite:
+        if self.filepath.exists() and not overwrite:
             LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
         else:
             self.make_directory()
@@ -79,8 +80,9 @@ class Video:
         self.resolution = self.get_adjusted_resolution()
         self.check_resolution()
         self.file = await self.get_file()
+        self.resume_point = self.get_resume_point()
         self.video_stream = await self.get_video_stream()
-        self.size = self.get_size()
+        self.remaining_size = self.get_remaining_size()
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
@@ -102,11 +104,11 @@ class Video:
         title = title_tag.text.strip("\n")
         return get_safe_title(title)
 
-    def get_filepath(self) -> str:
-        return os.path.join(self.directory, f"{self.title}.mp4")
+    def get_filepath(self) -> Path:
+        return Path(self.directory, f"{self.title}.mp4")
 
-    def get_partial_filepath(self) -> str:
-        return f"{self.filepath}.part"
+    def get_partial_filepath(self) -> Path:
+        return self.filepath.parent / f"{self.filepath.name}.part"
 
     def check_premium(self) -> None:
         if re.search(
@@ -168,37 +170,35 @@ class Video:
     async def get_file(self) -> str:
         return decrypt_url(self.video_info["file"])
 
+    def get_resume_point(self) -> int:
+        return (
+            self.partial_filepath.stat().st_size
+            if self.partial_filepath.exists()
+            else 0
+        )
+
     async def get_video_stream(self) -> aiohttp.ClientResponse:
-        range_num = None
-        if os.path.isfile(self.partial_filepath):
-            resume_point = os.path.getsize(self.partial_filepath)
-            range_num = f"bytes={resume_point}-"
-        if range_num:
-            self.headers["Range"] = range_num
+        range_num = f"bytes={self.resume_point}-"
+        self.headers["Range"] = range_num
         video_stream = await get_request(self.file, self.session, self.headers)
         return video_stream
 
-    def get_size(self) -> int:
-        """Get Video size in KiB."""
+    def get_remaining_size(self) -> int:
+        """Get remaining Video size in KiB."""
         return int(self.video_stream.headers.get("content-length", 0))
 
     def make_directory(self) -> None:
-        Path(self.directory).mkdir(parents=True, exist_ok=True)
+        self.directory.mkdir(parents=True, exist_ok=True)
 
     async def stream_file(self) -> None:
         block_size = 1024
         desc = f"{self.title}.mp4 [{self.resolution}]"
-        if os.path.isfile(self.filepath):
-            os.remove(self.filepath)
-        if os.path.isfile(self.partial_filepath):
-            start = os.path.getsize(self.partial_filepath)
-        else:
-            start = 0
+        self.filepath.unlink(missing_ok=True)
         async with aiofiles.open(self.partial_filepath, "ab") as f:
             with tqdm(
-                total=start + self.size,
+                total=self.resume_point + self.remaining_size,
                 unit="iB",
-                initial=start,
+                initial=self.resume_point,
                 unit_scale=True,
                 desc=desc,
                 leave=False,
@@ -208,4 +208,4 @@ class Video:
                 ):
                     await f.write(chunk)
                     pbar.update(len(chunk))
-        os.rename(self.partial_filepath, self.filepath)
+        self.partial_filepath.rename(self.filepath)
