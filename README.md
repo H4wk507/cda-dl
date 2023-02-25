@@ -20,6 +20,7 @@ cd cda-dl && pip install .
 ## Opcje
 
 ```
+$ cda-dl --help
 usage: cda-dl [-h] [-d DIR] [-R] [-r RES] [-o] URL [URL ...]
 
 Downloader do filmów i folderów z cda.pl

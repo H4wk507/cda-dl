@@ -4,6 +4,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cda_dl.downloader import Downloader
+from cda_dl.version import __version__
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -24,6 +25,7 @@ def parse_args(args: list[str]) -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         prog="cda-dl",
+        usage="%(prog)s [OPCJE] URL [URL...]",
         description="Downloader do filmów i folderów z cda.pl",
         formatter_class=fmt,
     )
@@ -35,9 +37,15 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     # )
     # parser.add_argument("-h", "--help",action="help",help=argparse.SUPPRESS)
     parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Wyświetl wersję programu",
+    )
+    parser.add_argument(
         "-d",
         "--directory",
-        metavar="DIR",
+        metavar="PATH",
         dest="directory",
         type=str,
         default=".",
@@ -93,7 +101,6 @@ if __name__ == "__main__":
     main()
 
 
-# TODO: add --version flag
 # TODO: rewrite to english beucase polish is cringe?
 # TODO: -t flag for threads
 # TODO: install via pip install cda-dl

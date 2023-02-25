@@ -1,23 +1,40 @@
 #!/usr/bin/env python3
 
 import os
+from typing import Any
 
 from setuptools import find_packages, setup
 
-directory = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(directory, "README.md"), encoding="utf-8") as f:
-    long_description = f.read()
 
-with open(os.path.join(directory, "requirements.txt"), encoding="utf-8") as f:
-    REQUIREMENTS = f.read().splitlines()
+def read_file(fname: str) -> str:
+    with open(fname, encoding="utf-8") as f:
+        return f.read()
+
+
+def read_version(fname: str) -> Any:
+    exec(compile(read_file(fname), fname, "exec"))
+    return locals()["__version__"]
+
+
+directory = os.path.abspath(os.path.dirname(__file__))
+
+VERSION = read_version(os.path.join(directory, "cda_dl", "version.py"))
+
+DESCRIPTION = "CLI downloader do filmów i folderów z cda.pl"
+
+LONG_DESCRIPTION = read_file(os.path.join(directory, "README.md"))
+
+REQUIREMENTS = read_file(
+    os.path.join(directory, "requirements.txt")
+).splitlines()
 
 setup(
     name="cda-dl",
-    version="1.0.0",
-    description="CLI downloader do filmów i folderów z cda.pl",
+    version=VERSION,
+    description=DESCRIPTION,
     author="Piotr Skowroński",
     license="MIT",
-    long_description=long_description,
+    long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     packages=find_packages(),
     classifiers=[
