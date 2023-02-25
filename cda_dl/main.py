@@ -6,13 +6,39 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cda_dl.downloader import Downloader
 
 
+class CustomHelpFormatter(argparse.HelpFormatter):
+    def __init__(self, prog: str):
+        super().__init__(prog, max_help_position=40, width=80)
+
+    def _format_action_invocation(self, action: argparse.Action) -> str:
+        if not action.option_strings or action.nargs == 0:
+            return super()._format_action_invocation(action)
+        default = self._get_default_metavar_for_optional(action)
+        args_string = self._format_args(action, default)
+        return ", ".join(action.option_strings) + " " + args_string
+
+
 def parse_args(args: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-h", "--help", action="help", help=argparse.SUPPRESS)
+    def fmt(prog: str) -> CustomHelpFormatter:
+        return CustomHelpFormatter(prog)
+
+    parser = argparse.ArgumentParser(
+        prog="cda-dl",
+        description="Downloader do filmów i folderów z cda.pl",
+        formatter_class=fmt,
+    )
+    # parser = argparse.ArgumentParser(
+    #    prog="cda-dl",
+    #    description="Downloader do filmów i folderów z cda.pl",
+    #    add_help=False,
+    #    formatter_class=fmt,
+    # )
+    # parser.add_argument("-h", "--help",action="help",help=argparse.SUPPRESS)
     parser.add_argument(
         "-d",
         "--directory",
-        metavar="\b",
+        metavar="DIR",
+        dest="directory",
         type=str,
         default=".",
         help="Ustaw docelowy katalog (domyślnie '%(default)s')",
@@ -27,7 +53,8 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "-r",
         "--resolution",
-        metavar="\b",
+        metavar="RES",
+        dest="resolution",
         type=str,
         default="najlepsza",
         help="Pobierz film w podanej rozdzielczości (domyślnie '%(default)s')",
@@ -35,10 +62,18 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "-o",
         "--overwrite",
-        dest="overwrite",
         action="store_true",
         help="Nadpisz pliki, jeśli istnieją",
     )
+    # parser.add_argument(
+    #    "-t",
+    #    "--threads",
+    #    metavar="N",
+    #    dest="nthreads",
+    #    type=int,
+    #    default=3,
+    #    help="Ustaw liczbę wątków (domyślnie %(default)s)",
+    # )
     parser.add_argument(
         "urls",
         metavar="URL",
@@ -58,6 +93,8 @@ if __name__ == "__main__":
     main()
 
 
-# TODO: add purge empty dirs after download
-# TODO: partial files for easier resuming the download
+# TODO: add --version flag
+# TODO: rewrite to english beucase polish is cringe?
+# TODO: -t flag for threads
+# TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

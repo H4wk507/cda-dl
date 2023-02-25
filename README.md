@@ -20,17 +20,20 @@ cd cda-dl && pip install .
 ## Opcje
 
 ```
-$ cda-dl --help
-usage: cda-dl [-d] [-R] [-r] [-o] URL [URL ...]
+usage: cda-dl [-h] [-d DIR] [-R] [-r RES] [-o] URL [URL ...]
+
+Downloader do filmów i folderów z cda.pl
 
 positional arguments:
-  URL                URL(y) do filmu(ów)/folder(ów) do pobrania
+  URL                   URL(y) do filmu(ów)/folder(ów) do pobrania
 
 options:
-  -d, --directory    Ustaw docelowy katalog (domyślnie '.')
-  -R, --resolutions  Wyświetl dostępne rozdzielczości (dla filmu)
-  -r, --resolution   Pobierz film w podanej rozdzielczości (domyślnie 'najlepsza')
-  -o, --overwrite    Nadpisz pliki, jeśli istnieją
+  -h, --help            show this help message and exit
+  -d, --directory DIR   Ustaw docelowy katalog (domyślnie '.')
+  -R, --resolutions     Wyświetl dostępne rozdzielczości (dla filmu)
+  -r, --resolution RES  Pobierz film w podanej rozdzielczości (domyślnie
+                        'najlepsza')
+  -o, --overwrite       Nadpisz pliki, jeśli istnieją
 ```
 
 ## Licencja
