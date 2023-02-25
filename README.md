@@ -21,7 +21,7 @@ cd cda-dl && pip install .
 
 ```
 $ cda-dl --help
-usage: cda-dl [-h] [-d DIR] [-R] [-r RES] [-o] URL [URL ...]
+usage: cda-dl [OPCJE] URL [URL...]
 
 Downloader do filmów i folderów z cda.pl
 
@@ -30,7 +30,8 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -d, --directory DIR   Ustaw docelowy katalog (domyślnie '.')
+  --version             Wyświetl wersję programu
+  -d, --directory PATH  Ustaw docelowy katalog (domyślnie '.')
   -R, --resolutions     Wyświetl dostępne rozdzielczości (dla filmu)
   -r, --resolution RES  Pobierz film w podanej rozdzielczości (domyślnie
                         'najlepsza')
