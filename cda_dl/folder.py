@@ -7,7 +7,7 @@ from pathlib import Path
 
 import aiohttp
 from bs4 import BeautifulSoup
-from tqdm.asyncio import tqdm
+from rich.progress import Progress, TaskID
 
 from cda_dl.error import HTTPError, ParserError
 from cda_dl.utils import get_folder_match, get_request, get_safe_title
@@ -48,7 +48,7 @@ class Folder:
         return self.url if match and match.group(2) else self.url + "1/"
 
     async def download_folder(
-        self, semaphore: asyncio.Semaphore, overwrite: bool
+        self, semaphore: asyncio.Semaphore, overwrite: bool, progress: Progress
     ) -> None:
         """Recursively download all videos and subfolders of the folder."""
         self.soup = await self.get_soup()
@@ -56,23 +56,25 @@ class Folder:
         await self.make_directory()
         self.folders = await self.get_subfolders()
         if len(self.folders) > 0:
-            await self.download_subfolders(semaphore, overwrite)
+            await self.download_subfolders(semaphore, overwrite, progress)
         self.videos = await self.get_videos_from_folder()
         if len(self.videos) > 0:
-            await self.download_videos_from_folder(semaphore, overwrite)
+            await self.download_videos_from_folder(
+                semaphore, overwrite, progress
+            )
 
     async def download_subfolders(
-        self, semaphore: asyncio.Semaphore, overwrite: bool
+        self, semaphore: asyncio.Semaphore, overwrite: bool, progress: Progress
     ) -> None:
         """Download all subfolders of the folder."""
-        for folder in tqdm(
-            self.folders,
+        task_id = progress.add_task(
+            description="download_folder",
+            filename=self.title,
             total=len(self.folders),
-            desc=self.title,
-            unit="FOLDER",
-            leave=False,
-        ):
-            await folder.download_folder(semaphore, overwrite)
+        )
+        for folder in self.folders:
+            await folder.download_folder(semaphore, overwrite, progress)
+            progress.update(task_id, advance=1)
 
     async def get_soup(self) -> BeautifulSoup:
         response = await get_request(self.url, self.session, self.headers)
@@ -111,22 +113,26 @@ class Folder:
         return folders
 
     async def download_videos_from_folder(
-        self, semaphore: asyncio.Semaphore, overwrite: bool
+        self, semaphore: asyncio.Semaphore, overwrite: bool, progress: Progress
     ) -> None:
         """Download all videos from the folder."""
 
-        async def wrapper(video: Video) -> None:
+        async def wrapper(video: Video, task_id: TaskID) -> None:
             async with semaphore:
-                await video.download_video(overwrite)
+                await video.download_video(overwrite, progress)
+                progress.update(task_id, advance=1)
 
-        tasks = [asyncio.create_task(wrapper(video)) for video in self.videos]
-        await tqdm.gather(
-            *tasks,
+        task_id = progress.add_task(
+            description="download_folder",
+            filename=self.title,
             total=len(self.videos),
-            desc=self.title,
             unit="VIDEO",
-            leave=False,
         )
+        tasks = [
+            asyncio.create_task(wrapper(video, task_id))
+            for video in self.videos
+        ]
+        await asyncio.gather(*tasks)
 
     async def get_videos_from_folder(self) -> list[Video]:
         """Get all videos from the folder."""

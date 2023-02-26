@@ -6,3 +6,4 @@ venv/
 *.swp
 *.egg-info/
 build/
+playground.py

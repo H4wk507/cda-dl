@@ -6,6 +6,15 @@ from os import path
 from pathlib import Path
 
 import aiohttp
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
+)
 
 from cda_dl.error import (
     FlagError,
@@ -55,8 +64,24 @@ class Downloader:
                 LOGGER.error(e)
             else:
                 self.video_urls, self.folder_urls = self.get_urls()
-                await self.download_folders(session)
-                await self.download_videos(session)
+                progress = Progress(
+                    SpinnerColumn(),
+                    TextColumn(
+                        "[bold blue]{task.fields[filename]}", justify="right"
+                    ),
+                    BarColumn(bar_width=None),
+                    "[progress.percentage]{task.percentage:>3.1f}%",
+                    "•",
+                    DownloadColumn(),
+                    "•",
+                    TransferSpeedColumn(),
+                    "•",
+                    TimeRemainingColumn(),
+                    transient=True,
+                )
+                with progress:
+                    await self.download_folders(session, progress)
+                    await self.download_videos(session, progress)
                 LOGGER.info("Skończono pobieranie wszystkich plików.")
 
     async def list_resolutions_and_exit(
@@ -131,18 +156,22 @@ class Downloader:
                 LOGGER.warning(f"Nie rozpoznano adresu url: {url}")
         return video_urls, folder_urls
 
-    async def download_folders(self, session: aiohttp.ClientSession) -> None:
+    async def download_folders(
+        self, session: aiohttp.ClientSession, progress: Progress
+    ) -> None:
         for folder_url in self.folder_urls:
             try:
                 await Folder(
                     folder_url,
                     self.directory,
                     session,
-                ).download_folder(self.semaphore, self.overwrite)
+                ).download_folder(self.semaphore, self.overwrite, progress)
             except (ParserError, HTTPError) as e:
                 LOGGER.warning(e)
 
-    async def download_videos(self, session: aiohttp.ClientSession) -> None:
+    async def download_videos(
+        self, session: aiohttp.ClientSession, progress: Progress
+    ) -> None:
         async def wrapper(video_url: str) -> None:
             async with self.semaphore:
                 try:
@@ -151,7 +180,7 @@ class Downloader:
                         self.directory,
                         self.resolution,
                         session,
-                    ).download_video(self.overwrite)
+                    ).download_video(self.overwrite, progress)
                 except (
                     LoginRequiredError,
                     GeoBlockedError,

@@ -9,7 +9,7 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from tqdm.asyncio import tqdm
+from rich.progress import Progress
 
 from cda_dl.error import (
     GeoBlockedError,
@@ -58,13 +58,15 @@ class Video:
             "X-Requested-With": "XMLHttpRequest",
         }
 
-    async def download_video(self, overwrite: bool) -> None:
+    async def download_video(
+        self, overwrite: bool, progress: Progress
+    ) -> None:
         await self.initialize()
         if self.filepath.exists() and not overwrite:
             LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
         else:
             self.make_directory()
-            await self.stream_file()
+            await self.stream_file(progress)
 
     async def initialize(self) -> None:
         """Initialize members required to download the Video."""
@@ -190,22 +192,21 @@ class Video:
     def make_directory(self) -> None:
         self.directory.mkdir(parents=True, exist_ok=True)
 
-    async def stream_file(self) -> None:
+    async def stream_file(self, progress: Progress) -> None:
         block_size = 1024
         desc = f"{self.title}.mp4 [{self.resolution}]"
         self.filepath.unlink(missing_ok=True)
+        task_id = progress.add_task(
+            total=self.resume_point + self.remaining_size,
+            completed=self.resume_point,
+            description="download",
+            filename=desc,
+        )
         async with aiofiles.open(self.partial_filepath, "ab") as f:
-            with tqdm(
-                total=self.resume_point + self.remaining_size,
-                unit="iB",
-                initial=self.resume_point,
-                unit_scale=True,
-                desc=desc,
-                leave=False,
-            ) as pbar:
-                async for chunk in self.video_stream.content.iter_chunked(
-                    block_size * block_size
-                ):
-                    await f.write(chunk)
-                    pbar.update(len(chunk))
+            async for chunk in self.video_stream.content.iter_chunked(
+                block_size * block_size
+            ):
+                await f.write(chunk)
+                progress.update(task_id, advance=len(chunk))
         self.partial_filepath.rename(self.filepath)
+        progress.remove_task(task_id)
