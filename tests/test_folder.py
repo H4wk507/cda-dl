@@ -76,9 +76,10 @@ async def test_get_subfolders() -> None:
 @pytest.mark.asyncio
 async def test_download_folder() -> None:
     url = "https://www.cda.pl/ARAN_Inc-/folder/29375711"
+    nthreads = 3
     async with ClientSession() as session:
         f = Folder(url, Path("."), session)
-        await f.download_folder(Semaphore(3), overwrite=True)
+        await f.download_folder(Semaphore(nthreads), overwrite=True)
         for v in f.videos:
             s = os.stat(v.filepath)
             assert s.st_size == v.remaining_size

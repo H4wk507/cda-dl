@@ -36,6 +36,7 @@ options:
   -r, --resolution RES  Pobierz film w podanej rozdzielczości (domyślnie
                         'najlepsza')
   -o, --overwrite       Nadpisz pliki, jeśli istnieją
+  -t, --threads N       Ustaw liczbę wątków (domyślnie 3)
 ```
 
 ## Licencja

@@ -73,15 +73,15 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Nadpisz pliki, jeśli istnieją",
     )
-    # parser.add_argument(
-    #    "-t",
-    #    "--threads",
-    #    metavar="N",
-    #    dest="nthreads",
-    #    type=int,
-    #    default=3,
-    #    help="Ustaw liczbę wątków (domyślnie %(default)s)",
-    # )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        metavar="N",
+        dest="nthreads",
+        type=int,
+        default=3,
+        help="Ustaw liczbę wątków (domyślnie %(default)s)",
+    )
     parser.add_argument(
         "urls",
         metavar="URL",
@@ -102,6 +102,5 @@ if __name__ == "__main__":
 
 
 # TODO: rewrite to english beucase polish is cringe?
-# TODO: -t flag for threads
 # TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

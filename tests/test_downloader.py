@@ -45,7 +45,7 @@ def test_list_resolutions_and_exit_folder(caplog: Any) -> None:
         with pytest.raises(SystemExit, match=""):
             Downloader(args)
             assert (
-                "Flaga -R jest dostępna tylko dla filmów."
+                "Opcja -R jest dostępna tylko dla filmów."
                 f" {folder['url']} jest folderem!"
                 in caplog.text
             )
@@ -71,19 +71,19 @@ def test_list_resolutions_and_exit_unknown(caplog: Any) -> None:
         assert f"Nie rozpoznano adresu url: {url}" in caplog.text
 
 
-def test_handle_r_flag_folder(caplog: Any) -> None:
+def test_set_resolution_folder(caplog: Any) -> None:
     for folder in FOLDER_DATA:
         res = "720p"
         args = parse_args(["-r", res, folder["url"]])
         Downloader(args)
         assert (
-            f"Flaga -r jest dostępna tylko dla filmów. {folder['url']} jest"
+            f"Opcja -r jest dostępna tylko dla filmów. {folder['url']} jest"
             " folderem!"
             in caplog.text
         )
 
 
-def test_handle_r_flag_video(caplog: Any) -> None:
+def test_set_resolution_video(caplog: Any) -> None:
     for video in VIDEO_DATA:
         if not video["resolutions"]:
             continue
@@ -96,9 +96,19 @@ def test_handle_r_flag_video(caplog: Any) -> None:
             )
 
 
-def test_handle_r_flag_unknown(caplog: Any) -> None:
+def test_set_resolution_unknown(caplog: Any) -> None:
     url = "https://www.google.com"
     res = "720p"
     args = parse_args(["-r", res, url])
     Downloader(args)
     assert f"Nie rozpoznano adresu url: {url}" in caplog.text
+
+
+def test_set_threads_negative(caplog: Any) -> None:
+    url = "https://www.cda.pl/video/9122600a"
+    nthreads = "-5"
+    args = parse_args(["-t", nthreads, url])
+    Downloader(args)
+    assert (
+        f"Opcja -t musi być większa od 0. Podano: {nthreads}." in caplog.text
+    )

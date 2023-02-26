@@ -30,6 +30,7 @@ class Downloader:
     resolution: str
     list_resolutions: bool
     overwrite: bool
+    nthreads: int
     semaphore: asyncio.Semaphore
 
     def __init__(self, args: argparse.Namespace) -> None:
@@ -40,13 +41,16 @@ class Downloader:
         self.resolution = args.resolution
         self.list_resolutions = args.list_resolutions
         self.overwrite = args.overwrite
-        self.semaphore = asyncio.Semaphore(3)
+        self.nthreads = args.nthreads
         asyncio.run(self.main())
 
     async def main(self) -> None:
         async with aiohttp.ClientSession() as session:
             try:
-                await self.handle_flags(session)
+                if self.list_resolutions:
+                    await self.list_resolutions_and_exit(session)
+                await self.set_resolution(session)
+                self.set_threads()
             except (FlagError, ResolutionError) as e:
                 LOGGER.error(e)
             else:
@@ -54,11 +58,6 @@ class Downloader:
                 await self.download_folders(session)
                 await self.download_videos(session)
                 LOGGER.info("Skończono pobieranie wszystkich plików.")
-
-    async def handle_flags(self, session: aiohttp.ClientSession) -> None:
-        if self.list_resolutions:
-            await self.list_resolutions_and_exit(session)
-        await self.handle_r_flag(session)
 
     async def list_resolutions_and_exit(
         self, session: aiohttp.ClientSession
@@ -81,14 +80,15 @@ class Downloader:
                     LOGGER.info(res)
             elif is_folder(url):
                 LOGGER.warning(
-                    f"Flaga -R jest dostępna tylko dla filmów. {url} jest"
+                    f"Opcja -R jest dostępna tylko dla filmów. {url} jest"
                     " folderem!"
                 )
             else:
                 LOGGER.warning(f"Nie rozpoznano adresu url: {url}")
             sys.exit()
 
-    async def handle_r_flag(self, session: aiohttp.ClientSession) -> None:
+    async def set_resolution(self, session: aiohttp.ClientSession) -> None:
+        """Specify resolution for videos download."""
         for url in self.urls:
             if self.resolution != "najlepsza":
                 if is_video(url):
@@ -105,11 +105,19 @@ class Downloader:
                     v.check_resolution()
                 elif is_folder(url):
                     raise FlagError(
-                        f"Flaga -r jest dostępna tylko dla filmów. {url} jest"
+                        f"Opcja -r jest dostępna tylko dla filmów. {url} jest"
                         " folderem!"
                     )
                 else:
                     raise FlagError(f"Nie rozpoznano adresu url: {url}")
+
+    def set_threads(self) -> None:
+        """Set number of threads for download."""
+        if self.nthreads <= 0:
+            raise FlagError(
+                f"Opcja -t musi być większa od 0. Podano: {self.nthreads}."
+            )
+        self.semaphore = asyncio.Semaphore(self.nthreads)
 
     def get_urls(self) -> tuple[list[str], list[str]]:
         video_urls: list[str] = []
