@@ -71,7 +71,7 @@ def test_list_resolutions_and_exit_unknown(caplog: Any) -> None:
         assert f"Nie rozpoznano adresu url: {url}" in caplog.text
 
 
-def test_set_resolution_folder(caplog: Any) -> None:
+def test_check_valid_resolution_folder(caplog: Any) -> None:
     for folder in FOLDER_DATA:
         res = "720p"
         args = parse_args(["-r", res, folder["url"]])
@@ -83,7 +83,7 @@ def test_set_resolution_folder(caplog: Any) -> None:
         )
 
 
-def test_set_resolution_video(caplog: Any) -> None:
+def test_check_valid_resolution_video(caplog: Any) -> None:
     for video in VIDEO_DATA:
         if not video["resolutions"]:
             continue
@@ -96,7 +96,7 @@ def test_set_resolution_video(caplog: Any) -> None:
             )
 
 
-def test_set_resolution_unknown(caplog: Any) -> None:
+def test_check_valid_resolution_unknown(caplog: Any) -> None:
     url = "https://www.google.com"
     res = "720p"
     args = parse_args(["-r", res, url])

@@ -1,28 +1,28 @@
+from typing import Optional
+
+from rich.panel import Panel
 from rich.progress import (
-    Progress,
-    TextColumn,
     BarColumn,
-    SpinnerColumn,
     DownloadColumn,
-    TransferSpeedColumn,
+    Progress,
+    SpinnerColumn,
+    TaskID,
+    TextColumn,
     TimeRemainingColumn,
+    TransferSpeedColumn,
 )
 from rich.table import Table
-from rich.panel import Panel
-
-from typing import Optional
 
 
 class RichUI:
-    def __init__(
-        self,
-        table: Table,
-        progbar_video: Optional[Progress] = None,
-        progbar_folder: Optional[Progress] = None,
-    ) -> None:
+    progbar_video: Optional[Progress]
+    progbar_folder: Optional[Progress]
+    task_id: TaskID
+
+    def __init__(self, table: Table) -> None:
         self.table = table
-        self.progbar_video = progbar_video
-        self.progbar_folder = progbar_folder
+        self.progbar_video = None
+        self.progbar_folder = None
 
     def set_progress_bar_video(self, color: str) -> None:
         self.progbar_video = Progress(
@@ -75,3 +75,19 @@ class RichUI:
                 padding=(1, 1),
             )
         )
+
+    def add_task_folder(self, filename: str, total: int) -> None:
+        assert self.progbar_folder
+        self.task_id = self.progbar_folder.add_task(
+            "download folder",
+            filename=filename,
+            total=total,
+        )
+
+    def update_task_folder(self, advance: int) -> None:
+        assert self.progbar_folder
+        self.progbar_folder.update(self.task_id, advance=advance)
+
+    def remove_task_folder(self) -> None:
+        assert self.progbar_folder
+        self.progbar_folder.remove_task(self.task_id)

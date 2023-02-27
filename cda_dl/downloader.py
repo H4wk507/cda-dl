@@ -18,9 +18,9 @@ from cda_dl.error import (
     ResolutionError,
 )
 from cda_dl.folder import Folder
+from cda_dl.ui import RichUI
 from cda_dl.utils import is_folder, is_video
 from cda_dl.video import Video
-from cda_dl.ui import RichUI
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -65,9 +65,10 @@ class Downloader:
                         await self.download_folders(session)
                     if len(self.video_urls) > 0:
                         await self.download_videos(session)
-                # TODO: when the download is finished, the empty rows of the table
-                # are still present, we could clear the whole terminal after download
-                # but then how do we handle bugs printed to the terminal?
+                # TODO: when the download is finished, the empty rows of the
+                # table are still present, we could clear the whole terminal
+                # after download but then how do we handle bugs printed to
+                # the terminal?
                 LOGGER.info("Skończono pobieranie wszystkich plików.")
 
     async def list_resolutions_and_exit(
@@ -143,8 +144,6 @@ class Downloader:
                 LOGGER.warning(e)
 
     async def download_videos(self, session: aiohttp.ClientSession) -> None:
-        # Generate videos progress bar if it hasnt been generated before
-        # if self.ui.table.row_count < 2:
         if self.ui.progbar_video is None:
             self.ui.set_progress_bar_video("bold blue")
             self.ui.add_row_video("green")

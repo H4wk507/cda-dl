@@ -7,9 +7,11 @@ from typing import cast
 
 import pytest
 from aiohttp import ClientSession
+from rich.table import Table
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cda_dl.folder import Folder
+from cda_dl.ui import RichUI
 
 directory = os.path.abspath(os.path.dirname(__file__))
 FOLDER_DATA = json.load(
@@ -19,13 +21,23 @@ FOLDER_DATA = json.load(
 
 def test_get_adjusted_url() -> None:
     for folder in FOLDER_DATA:
-        f = Folder(folder["url"], Path("."), cast(ClientSession, None))
+        f = Folder(
+            folder["url"],
+            Path("."),
+            cast(ClientSession, None),
+            cast(RichUI, None),
+        )
         assert f.url == folder["adjusted_url"]
 
 
 def test_get_next_page_url() -> None:
     for folder in FOLDER_DATA:
-        f = Folder(folder["url"], Path("."), cast(ClientSession, None))
+        f = Folder(
+            folder["url"],
+            Path("."),
+            cast(ClientSession, None),
+            cast(RichUI, None),
+        )
         assert f.get_next_page_url() == folder["next_page_url"]
 
 
@@ -35,7 +47,7 @@ async def test_get_folder_title() -> None:
         if not folder["title"]:
             continue
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], Path("."), session, cast(RichUI, None))
             f.soup = await f.get_soup()
             assert await f.get_folder_title() == folder["title"]
 
@@ -46,7 +58,7 @@ async def test_get_videos_from_current_page() -> None:
         if folder["pagenvideos"] == -1:
             continue
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], Path("."), session, cast(RichUI, None))
             f.soup = await f.get_soup()
             assert (
                 len(await f.get_videos_from_current_page())
@@ -58,7 +70,7 @@ async def test_get_videos_from_current_page() -> None:
 async def test_get_videos_from_folder() -> None:
     for folder in FOLDER_DATA:
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], Path("."), session, cast(RichUI, None))
             assert len(await f.get_videos_from_folder()) == folder["nvideos"]
 
 
@@ -68,7 +80,7 @@ async def test_get_subfolders() -> None:
         if folder["nsubfolders"] == -1:
             continue
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], Path("."), session, cast(RichUI, None))
             f.soup = await f.get_soup()
             assert len(await f.get_subfolders()) == folder["nsubfolders"]
 
@@ -77,9 +89,11 @@ async def test_get_subfolders() -> None:
 async def test_download_folder() -> None:
     url = "https://www.cda.pl/ARAN_Inc-/folder/29375711"
     nthreads = 3
+    ui = RichUI(Table())
+    ui.set_progress_bar_folder("")
     async with ClientSession() as session:
-        f = Folder(url, Path("."), session)
-        await f.download_folder(Semaphore(nthreads), True, None, None)
+        f = Folder(url, Path("."), session, ui)
+        await f.download_folder(Semaphore(nthreads), True)
         for v in f.videos:
             s = os.stat(v.filepath)
             assert s.st_size == v.remaining_size

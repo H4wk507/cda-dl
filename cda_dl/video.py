@@ -16,13 +16,13 @@ from cda_dl.error import (
     ParserError,
     ResolutionError,
 )
+from cda_dl.ui import RichUI
 from cda_dl.utils import (
     decrypt_url,
     get_request,
     get_safe_title,
     get_video_match,
 )
-from cda_dl.ui import RichUI
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -216,7 +216,6 @@ class Video:
         desc = f"{self.title}.mp4 [{self.resolution}]"
         self.filepath.unlink(missing_ok=True)
         assert self.ui.progbar_video
-        # TODO: method ?
         task_id = self.ui.progbar_video.add_task(
             "download",
             filename=desc,

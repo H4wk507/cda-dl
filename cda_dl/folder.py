@@ -7,12 +7,11 @@ from pathlib import Path
 
 import aiohttp
 from bs4 import BeautifulSoup
-from rich.progress import TaskID
 
 from cda_dl.error import HTTPError, ParserError
+from cda_dl.ui import RichUI
 from cda_dl.utils import get_folder_match, get_request, get_safe_title
 from cda_dl.video import Video
-from cda_dl.ui import RichUI
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -62,30 +61,23 @@ class Folder:
         self.folders = await self.get_subfolders()
         self.videos = await self.get_videos_from_folder()
         assert self.ui.progbar_folder
-        task_id = self.ui.progbar_folder.add_task(
-            "download folder",
-            filename=self.title,
-            total=len(self.folders) + len(self.videos),
+        self.ui.add_task_folder(
+            self.title, len(self.folders) + len(self.videos)
         )
         if len(self.videos) > 0:
-            await self.download_videos_from_folder(
-                semaphore, overwrite, task_id
-            )
+            await self.download_videos_from_folder(semaphore, overwrite)
         if len(self.folders) > 0:
-            await self.download_subfolders(semaphore, overwrite, task_id)
-        self.ui.progbar_folder.remove_task(task_id)
+            await self.download_subfolders(semaphore, overwrite)
+        self.ui.remove_task_folder()
 
     async def download_subfolders(
-        self,
-        semaphore: asyncio.Semaphore,
-        overwrite: bool,
-        task_id: TaskID,
+        self, semaphore: asyncio.Semaphore, overwrite: bool
     ) -> None:
         """Download all subfolders of the folder."""
         for folder in self.folders:
             await folder.download_folder(semaphore, overwrite)
             assert self.ui.progbar_folder
-            self.ui.progbar_folder.update(task_id, advance=1)
+            self.ui.update_task_folder(1)
 
     async def get_soup(self) -> BeautifulSoup:
         response = await get_request(self.url, self.session, self.headers)
@@ -124,23 +116,20 @@ class Folder:
         return folders
 
     async def download_videos_from_folder(
-        self, semaphore: asyncio.Semaphore, overwrite: bool, task_id: TaskID
+        self, semaphore: asyncio.Semaphore, overwrite: bool
     ) -> None:
         """Download all videos from the folder."""
         if self.ui.progbar_video is None:
             self.ui.set_progress_bar_video("bold blue")
             self.ui.add_row_video("green")
 
-        async def wrapper(video: Video, task_id: TaskID) -> None:
+        async def wrapper(video: Video) -> None:
             async with semaphore:
                 await video.download_video(overwrite)
                 assert self.ui.progbar_folder
-                self.ui.progbar_folder.update(task_id, advance=1)
+                self.ui.update_task_folder(1)
 
-        tasks = [
-            asyncio.create_task(wrapper(video, task_id))
-            for video in self.videos
-        ]
+        tasks = [asyncio.create_task(wrapper(video)) for video in self.videos]
         await asyncio.gather(*tasks)
 
     async def get_videos_from_folder(self) -> list[Video]:
