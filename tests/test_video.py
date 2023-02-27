@@ -122,7 +122,7 @@ async def test_download_video_overwrite() -> None:
     url = "https://www.cda.pl/video/7779552a9"
     async with ClientSession() as session:
         v = Video(url, Path("."), "480p", session)
-        await v.download_video(overwrite=True)
+        await v.download_video(True, None)
         s = os.stat(v.filepath)
         assert s.st_size == v.remaining_size
 
@@ -132,5 +132,5 @@ async def test_download_video_no_overwrite(caplog: Any) -> None:
     url = "https://www.cda.pl/video/7779552a9"
     async with ClientSession() as session:
         v = Video(url, Path("."), "480p", session)
-        await v.download_video(overwrite=False)
+        await v.download_video(False, None)
         assert f"Plik '{v.title}.mp4' już istnieje. Pomijam ..." in caplog.text

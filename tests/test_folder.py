@@ -79,7 +79,7 @@ async def test_download_folder() -> None:
     nthreads = 3
     async with ClientSession() as session:
         f = Folder(url, Path("."), session)
-        await f.download_folder(Semaphore(nthreads), overwrite=True)
+        await f.download_folder(Semaphore(nthreads), True, None, None)
         for v in f.videos:
             s = os.stat(v.filepath)
             assert s.st_size == v.remaining_size

@@ -9,7 +9,6 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from rich.progress import Progress
 
 from cda_dl.error import (
     GeoBlockedError,
@@ -23,6 +22,7 @@ from cda_dl.utils import (
     get_safe_title,
     get_video_match,
 )
+from cda_dl.ui import RichUI
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -48,25 +48,27 @@ class Video:
         directory: Path,
         resolution: str,
         session: aiohttp.ClientSession,
+        ui: RichUI,
     ) -> None:
         self.url = url
         self.directory = directory
         self.resolution = resolution
         self.session = session
+        self.ui = ui
         self.headers = {
             "Content-Type": "application/json",
             "X-Requested-With": "XMLHttpRequest",
         }
 
-    async def download_video(
-        self, overwrite: bool, progress: Progress
-    ) -> None:
+    async def download_video(self, overwrite: bool) -> None:
         await self.initialize()
         if self.filepath.exists() and not overwrite:
-            LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
+            pass
+            # this logger fucks up the ui
+            # LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
         else:
             self.make_directory()
-            await self.stream_file(progress)
+            await self.stream_file()
 
     async def initialize(self) -> None:
         """Initialize members required to download the Video."""
@@ -78,10 +80,10 @@ class Video:
         self.check_premium()
         self.check_geolocation()
         self.video_info = await self.get_video_info()
-        self.resolutions = await self.get_resolutions()
+        self.resolutions = self.get_resolutions()
         self.resolution = self.get_adjusted_resolution()
-        self.check_resolution()
-        self.file = await self.get_file()
+        self.raise_invalid_res()
+        self.file = self.get_file()
         self.resume_point = self.get_resume_point()
         self.video_stream = await self.get_video_stream()
         self.remaining_size = self.get_remaining_size()
@@ -143,9 +145,25 @@ class Video:
         player_data = json.loads(media_player.attrs["player_data"])
         return player_data["video"]
 
-    async def get_resolutions(self) -> list[str]:
+    def get_resolutions(self) -> list[str]:
         """Get available Video resolutions at the url."""
         return list(self.video_info["qualities"])
+
+    async def list_resolutions(self) -> None:
+        self.video_id = self.get_videoid()
+        self.video_soup = await self.get_video_soup()
+        self.video_info = await self.get_video_info()
+        resolutions = self.get_resolutions()
+        LOGGER.info(f"Dostępne rozdzielczości dla {self.url}:")
+        for res in resolutions:
+            LOGGER.info(res)
+
+    async def check_resolution(self) -> None:
+        self.video_id = self.get_videoid()
+        self.video_soup = await self.get_video_soup()
+        self.video_info = await self.get_video_info()
+        self.resolutions = self.get_resolutions()
+        self.raise_invalid_res()
 
     def get_best_resolution(self) -> str:
         """Get best Video resolution available at the url."""
@@ -161,15 +179,16 @@ class Video:
             else self.resolution
         )
 
-    def check_resolution(self) -> None:
-        """Check if resolution is correct."""
+    def raise_invalid_res(self) -> None:
+        """Raise ResolutionError if resolution is invalid."""
         if not self.is_valid_resolution():
             raise ResolutionError(
                 f"{self.resolution} rozdzielczość nie jest dostępna dla"
                 f" {self.url}"
             )
 
-    async def get_file(self) -> str:
+    def get_file(self) -> str:
+        """Get decrypted link to the file download."""
         return decrypt_url(self.video_info["file"])
 
     def get_resume_point(self) -> int:
@@ -192,21 +211,23 @@ class Video:
     def make_directory(self) -> None:
         self.directory.mkdir(parents=True, exist_ok=True)
 
-    async def stream_file(self, progress: Progress) -> None:
+    async def stream_file(self) -> None:
         block_size = 1024
         desc = f"{self.title}.mp4 [{self.resolution}]"
         self.filepath.unlink(missing_ok=True)
-        task_id = progress.add_task(
+        assert self.ui.progbar_video
+        # TODO: method ?
+        task_id = self.ui.progbar_video.add_task(
+            "download",
+            filename=desc,
             total=self.resume_point + self.remaining_size,
             completed=self.resume_point,
-            description="download",
-            filename=desc,
         )
         async with aiofiles.open(self.partial_filepath, "ab") as f:
             async for chunk in self.video_stream.content.iter_chunked(
                 block_size * block_size
             ):
                 await f.write(chunk)
-                progress.update(task_id, advance=len(chunk))
+                self.ui.progbar_video.update(task_id, advance=len(chunk))
         self.partial_filepath.rename(self.filepath)
-        progress.remove_task(task_id)
+        self.ui.progbar_video.remove_task(task_id)

@@ -101,6 +101,7 @@ if __name__ == "__main__":
     main()
 
 
+# TODO: write CI on github
 # TODO: better ui: https://github.com/Textualize/rich
 # TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?
