@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +8,7 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from rich.logging import RichHandler
 
 from cda_dl.error import (
     GeoBlockedError,
@@ -24,9 +24,12 @@ from cda_dl.utils import (
     get_video_match,
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[RichHandler(show_time=False)],
+)
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
-LOGGER.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class Video:
@@ -63,9 +66,7 @@ class Video:
     async def download_video(self, overwrite: bool) -> None:
         await self.initialize()
         if self.filepath.exists() and not overwrite:
-            pass
-            # this logger fucks up the ui
-            # LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
+            LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
         else:
             self.make_directory()
             await self.stream_file()

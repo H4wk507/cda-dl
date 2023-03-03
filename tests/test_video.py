@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -161,7 +162,6 @@ async def test_download_video_overwrite() -> None:
         assert s.st_size == v.remaining_size
 
 
-@pytest.mark.skip(reason="currently not working beucase of rich ui")
 @pytest.mark.asyncio
 async def test_download_video_no_overwrite(caplog: Any) -> None:
     url = "https://www.cda.pl/video/7779552a9"
@@ -169,5 +169,6 @@ async def test_download_video_no_overwrite(caplog: Any) -> None:
     ui.set_progress_bar_video("")
     async with ClientSession() as session:
         v = Video(url, Path("."), "480p", session, ui)
-        await v.download_video(overwrite=False)
+        with caplog.at_level(logging.INFO):
+            await v.download_video(overwrite=False)
         assert f"Plik '{v.title}.mp4' już istnieje. Pomijam ..." in caplog.text

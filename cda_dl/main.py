@@ -98,7 +98,6 @@ if __name__ == "__main__":
     main()
 
 
-# TODO: write CI on github
-# TODO: rich: check rich logging and console api
+# TODO: rich: check console api
 # TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

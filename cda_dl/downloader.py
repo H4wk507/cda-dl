@@ -7,6 +7,7 @@ from pathlib import Path
 
 import aiohttp
 from rich.live import Live
+from rich.logging import RichHandler
 from rich.table import Table
 
 from cda_dl.error import (
@@ -22,9 +23,12 @@ from cda_dl.ui import RichUI
 from cda_dl.utils import is_folder, is_video
 from cda_dl.video import Video
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[RichHandler(show_time=False)],
+)
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
-LOGGER.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class Downloader:
