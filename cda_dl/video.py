@@ -8,6 +8,7 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from rich.console import Console
 from rich.logging import RichHandler
 
 from cda_dl.download_options import DownloadOptions
@@ -63,6 +64,9 @@ class Video:
     async def download_video(
         self, download_options: DownloadOptions, download_state: DownloadState
     ) -> None:
+        LOGGER.level = (
+            logging.WARNING if download_options.quiet else logging.INFO
+        )
         try:
             await self.initialize(download_options)
         except (
@@ -168,9 +172,10 @@ class Video:
         self.video_soup = await self.get_video_soup()
         self.video_info = await self.get_video_info()
         resolutions = self.get_resolutions()
-        LOGGER.info(f"Dostępne rozdzielczości dla {self.url}:")
+        console = Console()
+        console.print(f"Dostępne rozdzielczości dla {self.url}")
         for res in resolutions:
-            LOGGER.info(res)
+            console.print(res)
 
     async def check_resolution(
         self, download_options: DownloadOptions

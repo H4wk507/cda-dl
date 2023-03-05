@@ -46,6 +46,7 @@ class Downloader:
             args.resolution,
             args.overwrite,
             args.nthreads,
+            args.quiet,
         )
         self.download_state = DownloadState()
         self.ui = RichUI(Table.grid(expand=True))

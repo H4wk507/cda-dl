@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from pathlib import Path
 
 import aiohttp
 from bs4 import BeautifulSoup
-from rich.logging import RichHandler
 
 from cda_dl.download_options import DownloadOptions
 from cda_dl.download_state import DownloadState
@@ -14,13 +12,6 @@ from cda_dl.error import HTTPError, ParserError
 from cda_dl.ui import RichUI
 from cda_dl.utils import get_folder_match, get_request, get_safe_title
 from cda_dl.video import Video
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    handlers=[RichHandler(show_time=False)],
-)
-LOGGER = logging.getLogger(__name__)
 
 
 class Folder:

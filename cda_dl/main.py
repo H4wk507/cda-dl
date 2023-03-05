@@ -40,6 +40,12 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         help="Wyświetl wersję programu",
     )
     parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Wyświetlaj tylko błędy i ostrzeżenia",
+    )
+    parser.add_argument(
         "-d",
         "--directory",
         metavar="PATH",
@@ -99,6 +105,5 @@ if __name__ == "__main__":
 
 
 # TODO: better log messages when skipping a video
-# TODO: add --quiet flag to supress all INFO level logs
 # TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

@@ -85,7 +85,7 @@ async def test_download_folder() -> None:
     url = "https://www.cda.pl/ARAN_Inc-/folder/29375711"
     ui = RichUI(Table())
     ui.set_progress_bar_folder("")
-    download_options = DownloadOptions(overwrite=True)
+    download_options = DownloadOptions(resolution="480p", overwrite=True)
     download_options.semaphore = Semaphore(download_options.nthreads)
     download_state = DownloadState()
     async with ClientSession() as session:
