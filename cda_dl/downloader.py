@@ -6,21 +6,17 @@ from os import path
 from pathlib import Path
 
 import aiohttp
+from rich.console import Console
 from rich.live import Live
 from rich.logging import RichHandler
 from rich.table import Table
 
-from cda_dl.error import (
-    FlagError,
-    GeoBlockedError,
-    HTTPError,
-    LoginRequiredError,
-    ParserError,
-    ResolutionError,
-)
+from cda_dl.download_options import DownloadOptions
+from cda_dl.download_state import DownloadState
+from cda_dl.error import FlagError, HTTPError, ParserError, ResolutionError
 from cda_dl.folder import Folder
 from cda_dl.ui import RichUI
-from cda_dl.utils import is_folder, is_video
+from cda_dl.utils import clear, is_folder, is_video
 from cda_dl.video import Video
 
 logging.basicConfig(
@@ -33,23 +29,25 @@ LOGGER = logging.getLogger(__name__)
 
 class Downloader:
     urls: list[str]
-    directory: Path
-    resolution: str
     list_resolutions: bool
-    overwrite: bool
-    nthreads: int
+    download_options: DownloadOptions
+    download_state: DownloadState
     ui: RichUI
-    semaphore: asyncio.Semaphore
+    video_urls: list[str]
+    folder_urls: list[str]
 
     def __init__(self, args: argparse.Namespace) -> None:
         self.urls = [url.strip() for url in args.urls]
-        self.directory = Path(
-            path.abspath(path.expanduser(path.expandvars(args.directory)))
-        )
-        self.resolution = args.resolution
         self.list_resolutions = args.list_resolutions
-        self.overwrite = args.overwrite
-        self.nthreads = args.nthreads
+        self.download_options = DownloadOptions(
+            Path(
+                path.abspath(path.expanduser(path.expandvars(args.directory)))
+            ),
+            args.resolution,
+            args.overwrite,
+            args.nthreads,
+        )
+        self.download_state = DownloadState()
         self.ui = RichUI(Table.grid(expand=True))
         asyncio.run(self.main())
 
@@ -69,11 +67,16 @@ class Downloader:
                         await self.download_folders(session)
                     if len(self.video_urls) > 0:
                         await self.download_videos(session)
-                # TODO: when the download is finished, the empty rows of the
-                # table are still present, we could clear the whole terminal
-                # after download but then how do we handle bugs printed to
-                # the terminal?
-                LOGGER.info("Skończono pobieranie wszystkich plików.")
+                clear()
+                console = Console()
+                console.print(
+                    "| [green bold]Pobrane Pliki:"
+                    f" {self.download_state.completed}[/] - [yellow"
+                    f" bold]Pominięte Pliki: {self.download_state.skipped}[/]"
+                    " - [red bold]Nieudane Pliki:"
+                    f" {self.download_state.failed}[/] |\n"
+                )
+                console.print("Skończono pobieranie. Enjoy :)")
 
     async def list_resolutions_and_exit(
         self, session: aiohttp.ClientSession
@@ -81,9 +84,7 @@ class Downloader:
         """List available resolutions for a video and exit."""
         for url in self.urls:
             if is_video(url):
-                await Video(
-                    url, self.directory, self.resolution, session, self.ui
-                ).list_resolutions()
+                await Video(url, session, self.ui).list_resolutions()
             elif is_folder(url):
                 LOGGER.warning(
                     f"Opcja -R jest dostępna tylko dla filmów. {url} jest"
@@ -95,7 +96,7 @@ class Downloader:
 
     def changed_resolution(self) -> bool:
         """Check if resolution was changed by the user."""
-        return self.resolution != "najlepsza"
+        return self.download_options.resolution != "najlepsza"
 
     async def check_valid_resolution(
         self, session: aiohttp.ClientSession
@@ -104,9 +105,9 @@ class Downloader:
         for url in self.urls:
             if self.changed_resolution():
                 if is_video(url):
-                    await Video(
-                        url, self.directory, self.resolution, session, self.ui
-                    ).check_resolution()
+                    await Video(url, session, self.ui).check_resolution(
+                        self.download_options
+                    )
                 elif is_folder(url):
                     raise FlagError(
                         f"Opcja -r jest dostępna tylko dla filmów. {url} jest"
@@ -117,11 +118,14 @@ class Downloader:
 
     def set_threads(self) -> None:
         """Set number of threads for download."""
-        if self.nthreads <= 0:
+        if self.download_options.nthreads <= 0:
             raise FlagError(
-                f"Opcja -t musi być większa od 0. Podano: {self.nthreads}."
+                "Opcja -t musi być większa od 0. Podano:"
+                f" {self.download_options.nthreads}."
             )
-        self.semaphore = asyncio.Semaphore(self.nthreads)
+        self.download_options.semaphore = asyncio.Semaphore(
+            self.download_options.nthreads
+        )
 
     def get_urls(self) -> tuple[list[str], list[str]]:
         """Split urls into two lists: video_urls and folder_urls."""
@@ -134,6 +138,7 @@ class Downloader:
                 folder_urls.append(url)
             else:
                 LOGGER.warning(f"Nie rozpoznano adresu url: {url}")
+                self.download_state.failed += 1
         return video_urls, folder_urls
 
     async def download_folders(self, session: aiohttp.ClientSession) -> None:
@@ -141,11 +146,12 @@ class Downloader:
         self.ui.add_row_folder("green")
         for folder_url in self.folder_urls:
             try:
-                await Folder(
-                    folder_url, self.directory, session, self.ui
-                ).download_folder(self.semaphore, self.overwrite)
+                await Folder(folder_url, session, self.ui).download_folder(
+                    self.download_options, self.download_state
+                )
             except (ParserError, HTTPError) as e:
                 LOGGER.warning(e)
+                self.download_state.failed += 1
 
     async def download_videos(self, session: aiohttp.ClientSession) -> None:
         if self.ui.progbar_video is None:
@@ -153,23 +159,10 @@ class Downloader:
             self.ui.add_row_video("green")
 
         async def wrapper(video_url: str) -> None:
-            async with self.semaphore:
-                try:
-                    await Video(
-                        video_url,
-                        self.directory,
-                        self.resolution,
-                        session,
-                        self.ui,
-                    ).download_video(self.overwrite)
-                except (
-                    LoginRequiredError,
-                    GeoBlockedError,
-                    ResolutionError,
-                    ParserError,
-                    HTTPError,
-                ) as e:
-                    LOGGER.warning(e)
+            async with self.download_options.semaphore:
+                await Video(video_url, session, self.ui).download_video(
+                    self.download_options, self.download_state
+                )
 
         tasks = [
             asyncio.create_task(wrapper(video_url))

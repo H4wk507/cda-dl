@@ -12,12 +12,12 @@ from cda_dl.main import parse_args
 from cda_dl.utils import is_folder, is_video
 
 directory = os.path.abspath(os.path.dirname(__file__))
-VIDEO_DATA = json.load(open(os.path.join(directory, "video_data.json"), "r"))[
+VIDEO_DATA = json.load(open(os.path.join(directory, "video_data.json")))[
     "videos"
 ]
-FOLDER_DATA = json.load(
-    open(os.path.join(directory, "folder_data.json"), "r")
-)["folders"]
+FOLDER_DATA = json.load(open(os.path.join(directory, "folder_data.json")))[
+    "folders"
+]
 
 
 def test_is_video() -> None:

@@ -98,6 +98,7 @@ if __name__ == "__main__":
     main()
 
 
-# TODO: rich: check console api
+# TODO: better log messages when skipping a video
+# TODO: add --quiet flag to supress all INFO level logs
 # TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

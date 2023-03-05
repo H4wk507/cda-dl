@@ -1,5 +1,3 @@
-from typing import Optional
-
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
@@ -15,8 +13,8 @@ from rich.table import Table
 
 
 class RichUI:
-    progbar_video: Optional[Progress]
-    progbar_folder: Optional[Progress]
+    progbar_video: Progress | None
+    progbar_folder: Progress | None
     task_id: TaskID
 
     def __init__(self, table: Table) -> None:
