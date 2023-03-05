@@ -27,15 +27,12 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         prog="cda-dl",
         usage="%(prog)s [OPCJE] URL [URL...]",
         description="Downloader do filmów i folderów z cda.pl",
+        add_help=False,
         formatter_class=fmt,
     )
-    # parser = argparse.ArgumentParser(
-    #    prog="cda-dl",
-    #    description="Downloader do filmów i folderów z cda.pl",
-    #    add_help=False,
-    #    formatter_class=fmt,
-    # )
-    # parser.add_argument("-h", "--help",action="help",help=argparse.SUPPRESS)
+    parser.add_argument(
+        "-h", "--help", action="help", help="Wyświetl tę pomoc i wyjdź"
+    )
     parser.add_argument(
         "--version",
         action="version",
@@ -101,6 +98,7 @@ if __name__ == "__main__":
     main()
 
 
-# TODO: rewrite to english beucase polish is cringe?
+# TODO: better log messages when skipping a video
+# TODO: add --quiet flag to supress all INFO level logs
 # TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

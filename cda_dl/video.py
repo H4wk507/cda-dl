@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -9,14 +8,18 @@ import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from tqdm.asyncio import tqdm
+from rich.logging import RichHandler
 
+from cda_dl.download_options import DownloadOptions
+from cda_dl.download_state import DownloadState
 from cda_dl.error import (
     GeoBlockedError,
+    HTTPError,
     LoginRequiredError,
     ParserError,
     ResolutionError,
 )
+from cda_dl.ui import RichUI
 from cda_dl.utils import (
     decrypt_url,
     get_request,
@@ -24,9 +27,12 @@ from cda_dl.utils import (
     get_video_match,
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[RichHandler(show_time=False)],
+)
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
-LOGGER.addHandler(logging.StreamHandler(sys.stdout))
 
 
 class Video:
@@ -34,6 +40,7 @@ class Video:
     resolutions: list[str]
     video_soup: BeautifulSoup
     video_info: Any
+    resolution: str
     file: str
     video_stream: aiohttp.ClientResponse
     remaining_size: int
@@ -43,43 +50,54 @@ class Video:
     resume_point: int
 
     def __init__(
-        self,
-        url: str,
-        directory: Path,
-        resolution: str,
-        session: aiohttp.ClientSession,
+        self, url: str, session: aiohttp.ClientSession, ui: RichUI
     ) -> None:
         self.url = url
-        self.directory = directory
-        self.resolution = resolution
         self.session = session
+        self.ui = ui
         self.headers = {
             "Content-Type": "application/json",
             "X-Requested-With": "XMLHttpRequest",
         }
 
-    async def download_video(self, overwrite: bool) -> None:
-        await self.initialize()
-        if self.filepath.exists() and not overwrite:
-            LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
+    async def download_video(
+        self, download_options: DownloadOptions, download_state: DownloadState
+    ) -> None:
+        try:
+            await self.initialize(download_options)
+        except (
+            LoginRequiredError,
+            GeoBlockedError,
+            ResolutionError,
+            ParserError,
+            HTTPError,
+        ) as e:
+            LOGGER.warning(e)
+            download_state.failed += 1
         else:
-            self.make_directory()
-            await self.stream_file()
+            if self.filepath.exists() and not download_options.overwrite:
+                LOGGER.info(
+                    f"Plik '{self.title}.mp4' już istnieje. Pomijam ..."
+                )
+                download_state.skipped += 1
+            else:
+                self.make_directory(download_options)
+                await self.stream_file(download_state)
 
-    async def initialize(self) -> None:
+    async def initialize(self, download_options: DownloadOptions) -> None:
         """Initialize members required to download the Video."""
         self.video_id = self.get_videoid()
         self.video_soup = await self.get_video_soup()
         self.title = self.get_video_title()
-        self.filepath = self.get_filepath()
+        self.filepath = self.get_filepath(download_options)
         self.partial_filepath = self.get_partial_filepath()
         self.check_premium()
         self.check_geolocation()
         self.video_info = await self.get_video_info()
-        self.resolutions = await self.get_resolutions()
-        self.resolution = self.get_adjusted_resolution()
-        self.check_resolution()
-        self.file = await self.get_file()
+        self.resolutions = self.get_resolutions()
+        self.resolution = self.get_adjusted_resolution(download_options)
+        self.raise_invalid_res()
+        self.file = self.get_file()
         self.resume_point = self.get_resume_point()
         self.video_stream = await self.get_video_stream()
         self.remaining_size = self.get_remaining_size()
@@ -104,8 +122,8 @@ class Video:
         title = title_tag.text.strip("\n")
         return get_safe_title(title)
 
-    def get_filepath(self) -> Path:
-        return Path(self.directory, f"{self.title}.mp4")
+    def get_filepath(self, download_options: DownloadOptions) -> Path:
+        return Path(download_options.directory, f"{self.title}.mp4")
 
     def get_partial_filepath(self) -> Path:
         return self.filepath.parent / f"{self.filepath.name}.part"
@@ -141,9 +159,28 @@ class Video:
         player_data = json.loads(media_player.attrs["player_data"])
         return player_data["video"]
 
-    async def get_resolutions(self) -> list[str]:
+    def get_resolutions(self) -> list[str]:
         """Get available Video resolutions at the url."""
         return list(self.video_info["qualities"])
+
+    async def list_resolutions(self) -> None:
+        self.video_id = self.get_videoid()
+        self.video_soup = await self.get_video_soup()
+        self.video_info = await self.get_video_info()
+        resolutions = self.get_resolutions()
+        LOGGER.info(f"Dostępne rozdzielczości dla {self.url}:")
+        for res in resolutions:
+            LOGGER.info(res)
+
+    async def check_resolution(
+        self, download_options: DownloadOptions
+    ) -> None:
+        self.video_id = self.get_videoid()
+        self.video_soup = await self.get_video_soup()
+        self.video_info = await self.get_video_info()
+        self.resolutions = self.get_resolutions()
+        self.resolution = download_options.resolution
+        self.raise_invalid_res()
 
     def get_best_resolution(self) -> str:
         """Get best Video resolution available at the url."""
@@ -152,22 +189,25 @@ class Video:
     def is_valid_resolution(self) -> bool:
         return self.resolution in self.resolutions
 
-    def get_adjusted_resolution(self) -> str:
+    def get_adjusted_resolution(
+        self, download_options: DownloadOptions
+    ) -> str:
         return (
             self.get_best_resolution()
-            if self.resolution == "najlepsza"
-            else self.resolution
+            if download_options.resolution == "najlepsza"
+            else download_options.resolution
         )
 
-    def check_resolution(self) -> None:
-        """Check if resolution is correct."""
+    def raise_invalid_res(self) -> None:
+        """Raise ResolutionError if resolution is invalid."""
         if not self.is_valid_resolution():
             raise ResolutionError(
                 f"{self.resolution} rozdzielczość nie jest dostępna dla"
                 f" {self.url}"
             )
 
-    async def get_file(self) -> str:
+    def get_file(self) -> str:
+        """Get decrypted link to the file download."""
         return decrypt_url(self.video_info["file"])
 
     def get_resume_point(self) -> int:
@@ -187,25 +227,26 @@ class Video:
         """Get remaining Video size in KiB."""
         return int(self.video_stream.headers.get("content-length", 0))
 
-    def make_directory(self) -> None:
-        self.directory.mkdir(parents=True, exist_ok=True)
+    def make_directory(self, download_options: DownloadOptions) -> None:
+        download_options.directory.mkdir(parents=True, exist_ok=True)
 
-    async def stream_file(self) -> None:
+    async def stream_file(self, download_state: DownloadState) -> None:
         block_size = 1024
         desc = f"{self.title}.mp4 [{self.resolution}]"
         self.filepath.unlink(missing_ok=True)
+        assert self.ui.progbar_video
+        task_id = self.ui.progbar_video.add_task(
+            "download",
+            filename=desc,
+            total=self.resume_point + self.remaining_size,
+            completed=self.resume_point,
+        )
         async with aiofiles.open(self.partial_filepath, "ab") as f:
-            with tqdm(
-                total=self.resume_point + self.remaining_size,
-                unit="iB",
-                initial=self.resume_point,
-                unit_scale=True,
-                desc=desc,
-                leave=False,
-            ) as pbar:
-                async for chunk in self.video_stream.content.iter_chunked(
-                    block_size * block_size
-                ):
-                    await f.write(chunk)
-                    pbar.update(len(chunk))
+            async for chunk in self.video_stream.content.iter_chunked(
+                block_size * block_size
+            ):
+                await f.write(chunk)
+                self.ui.progbar_video.update(task_id, advance=len(chunk))
         self.partial_filepath.rename(self.filepath)
+        self.ui.progbar_video.remove_task(task_id)
+        download_state.completed += 1

@@ -2,30 +2,37 @@ import json
 import os
 import sys
 from asyncio import Semaphore
-from pathlib import Path
 from typing import cast
 
 import pytest
 from aiohttp import ClientSession
+from rich.table import Table
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from cda_dl.download_options import DownloadOptions
+from cda_dl.download_state import DownloadState
 from cda_dl.folder import Folder
+from cda_dl.ui import RichUI
 
 directory = os.path.abspath(os.path.dirname(__file__))
-FOLDER_DATA = json.load(
-    open(os.path.join(directory, "folder_data.json"), "r")
-)["folders"]
+FOLDER_DATA = json.load(open(os.path.join(directory, "folder_data.json")))[
+    "folders"
+]
 
 
 def test_get_adjusted_url() -> None:
     for folder in FOLDER_DATA:
-        f = Folder(folder["url"], Path("."), cast(ClientSession, None))
+        f = Folder(
+            folder["url"], cast(ClientSession, None), cast(RichUI, None)
+        )
         assert f.url == folder["adjusted_url"]
 
 
 def test_get_next_page_url() -> None:
     for folder in FOLDER_DATA:
-        f = Folder(folder["url"], Path("."), cast(ClientSession, None))
+        f = Folder(
+            folder["url"], cast(ClientSession, None), cast(RichUI, None)
+        )
         assert f.get_next_page_url() == folder["next_page_url"]
 
 
@@ -35,7 +42,7 @@ async def test_get_folder_title() -> None:
         if not folder["title"]:
             continue
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], session, cast(RichUI, None))
             f.soup = await f.get_soup()
             assert await f.get_folder_title() == folder["title"]
 
@@ -46,7 +53,7 @@ async def test_get_videos_from_current_page() -> None:
         if folder["pagenvideos"] == -1:
             continue
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], session, cast(RichUI, None))
             f.soup = await f.get_soup()
             assert (
                 len(await f.get_videos_from_current_page())
@@ -58,7 +65,7 @@ async def test_get_videos_from_current_page() -> None:
 async def test_get_videos_from_folder() -> None:
     for folder in FOLDER_DATA:
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], session, cast(RichUI, None))
             assert len(await f.get_videos_from_folder()) == folder["nvideos"]
 
 
@@ -68,7 +75,7 @@ async def test_get_subfolders() -> None:
         if folder["nsubfolders"] == -1:
             continue
         async with ClientSession() as session:
-            f = Folder(folder["url"], Path("."), session)
+            f = Folder(folder["url"], session, cast(RichUI, None))
             f.soup = await f.get_soup()
             assert len(await f.get_subfolders()) == folder["nsubfolders"]
 
@@ -76,10 +83,14 @@ async def test_get_subfolders() -> None:
 @pytest.mark.asyncio
 async def test_download_folder() -> None:
     url = "https://www.cda.pl/ARAN_Inc-/folder/29375711"
-    nthreads = 3
+    ui = RichUI(Table())
+    ui.set_progress_bar_folder("")
+    download_options = DownloadOptions(overwrite=True)
+    download_options.semaphore = Semaphore(download_options.nthreads)
+    download_state = DownloadState()
     async with ClientSession() as session:
-        f = Folder(url, Path("."), session)
-        await f.download_folder(Semaphore(nthreads), overwrite=True)
+        f = Folder(url, session, ui)
+        await f.download_folder(download_options, download_state)
         for v in f.videos:
             s = os.stat(v.filepath)
             assert s.st_size == v.remaining_size

@@ -1,3 +1,4 @@
+import os
 import random
 import re
 import urllib.parse
@@ -132,3 +133,8 @@ async def get_request(
         raise HTTPError(f"HTTP error [{e.status}]: {e.message}. Pomijam ...")
     else:
         return response
+
+
+def clear() -> None:
+    """Clear the terminal screen."""
+    os.system("cls" if os.name == "nt" else "clear")

@@ -29,7 +29,7 @@ positional arguments:
   URL                   URL(y) do filmu(ów)/folder(ów) do pobrania
 
 options:
-  -h, --help            show this help message and exit
+  -h, --help            Wyświetl tę pomoc i wyjdź
   --version             Wyświetl wersję programu
   -d, --directory PATH  Ustaw docelowy katalog (domyślnie '.')
   -R, --resolutions     Wyświetl dostępne rozdzielczości (dla filmu)

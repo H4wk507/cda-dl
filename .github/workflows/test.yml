@@ -15,7 +15,7 @@ jobs:
         pip install pytest pytest-asyncio
         pip install -r requirements.txt
     - name: Run tests
-      run: python3 -m pytest
+      run: python3 -m pytest -m 'not location'
   flake8:
     name: Linter
     runs-on: ubuntu-latest
