@@ -34,15 +34,16 @@ async def test_premium_video() -> None:
     url = "https://www.cda.pl/video/63289011/vfilm"
     async with ClientSession() as session:
         v = Video(url, session, cast(RichUI, None))
+        v.video_id = v.get_videoid()
+        v.video_soup = await v.get_video_soup()
+        v.title = v.get_video_title()
         with pytest.raises(
             LoginRequiredError,
             match=(
-                "Ten film jest dostępny tylko dla użytkowników premium."
+                f"{v.title} jest dostępny tylko dla użytkowników premium."
                 " Pomijam ..."
             ),
         ):
-            v.video_id = v.get_videoid()
-            v.video_soup = await v.get_video_soup()
             v.check_premium()
 
 
@@ -52,12 +53,12 @@ async def test_geoblocked() -> None:
     url = "https://www.cda.pl/video/124097194d/vfilm"
     async with ClientSession() as session:
         v = Video(url, session, cast(RichUI, None))
+        v.video_id = v.get_videoid()
+        v.video_soup = await v.get_video_soup()
         with pytest.raises(
             GeoBlockedError,
-            match="To wideo jest niedostępne w Twoim kraju. Pomijam ...",
+            match=f"{v.url} jest niedostępny w Twoim kraju. Pomijam ...",
         ):
-            v.video_id = v.get_videoid()
-            v.video_soup = await v.get_video_soup()
             v.check_geolocation()
 
 

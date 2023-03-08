@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from typing import Sequence
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cda_dl.downloader import Downloader
@@ -19,7 +20,7 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         return ", ".join(action.option_strings) + " " + args_string
 
 
-def parse_args(args: list[str]) -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     def fmt(prog: str) -> CustomHelpFormatter:
         return CustomHelpFormatter(prog)
 
@@ -92,18 +93,18 @@ def parse_args(args: list[str]) -> argparse.Namespace:
         nargs="+",
         help="URL(y) do filmu(ów)/folder(ów) do pobrania",
     )
-    return parser.parse_args(args)
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    my_args = parse_args(sys.argv[1:])
-    Downloader(my_args)
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    Downloader(args)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
 
 
-# TODO: better log messages when skipping a video
 # TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

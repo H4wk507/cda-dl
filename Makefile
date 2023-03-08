@@ -1,5 +1,3 @@
-clean: clean-test clean-cache
-
 clean-test:
 	find . \( -type f -name "*.mp4" -o -type f -name "*.part" \) -exec rm -f {} \;
 	# purge empty directories
@@ -10,6 +8,11 @@ clean-cache:
 	find . \( \
 		-type d -name .pytest_cache -o -type d -name __pycache__ -o -name "*.pyc" -o -type d -name .mypy_cache \
 	\) -prune -exec rm -rf {} \;
+
+clean-build:
+	rm -rf build cda_dl.egg-info
+
+clean: clean-test clean-cache clean-build
 
 codetest:
 	isort .

@@ -90,7 +90,7 @@ class Folder:
             )[-1]
         except IndexError:
             raise ParserError(
-                f"Error podczas parsowania 'folder title' dla {self.url}."
+                f"Error podczas parsowania 'folder title' dla {self.url}"
                 " Pomijam ..."
             )
         title = title_wrapper.find("a", href=True).text

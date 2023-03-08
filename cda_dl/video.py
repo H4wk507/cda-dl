@@ -121,7 +121,8 @@ class Video:
         title_tag = self.video_soup.find("h1")
         if not isinstance(title_tag, Tag):
             raise ParserError(
-                "Error podczas parsowania 'video title'. Pomijam ..."
+                "Error podczas parsowania 'video title' dla"
+                f" {self.url} Pomijam ..."
             )
         title = title_tag.text.strip("\n")
         return get_safe_title(title)
@@ -138,7 +139,7 @@ class Video:
             self.video_soup.text,
         ):
             raise LoginRequiredError(
-                "Ten film jest dostępny tylko dla użytkowników premium."
+                f"{self.title} jest dostępny tylko dla użytkowników premium."
                 " Pomijam ..."
             )
 
@@ -148,7 +149,7 @@ class Video:
             self.video_soup.text,
         ):
             raise GeoBlockedError(
-                "To wideo jest niedostępne w Twoim kraju. Pomijam ..."
+                f"{self.url} jest niedostępny w Twoim kraju. Pomijam ..."
             )
 
     async def get_video_info(self) -> Any:
@@ -158,7 +159,8 @@ class Video:
         )
         if not isinstance(media_player, Tag):
             raise ParserError(
-                "Error podczas parsowania 'media player'. Pomijam ..."
+                f"Error podczas parsowania 'media player' dla {self.title}."
+                " Pomijam ..."
             )
         player_data = json.loads(media_player.attrs["player_data"])
         return player_data["video"]
