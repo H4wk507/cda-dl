@@ -2,16 +2,21 @@
 
 CLI downloader do filmów i folderów z [cda.pl](https://www.cda.pl/)
 
-## Instalacja
+## Instalacja z PyPI
 
-1. Pobierz [Pythona](https://www.python.org/downloads/)
-2. Sklonuj repozytorium
+```
+pip install cda-dl
+```
+
+## Instalacja manualna
+
+1. Sklonuj repozytorium
 
 ```
 git clone https://github.com/H4wk507/cda-dl.git
 ```
 
-3. Wejdź do katalogu i zainstaluj
+2. Wejdź do katalogu i zainstaluj
 
 ```
 cd cda-dl && pip install .

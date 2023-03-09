@@ -106,5 +106,4 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-# TODO: install via pip install cda-dl
 # TODO: maybe support for premium videos on login?

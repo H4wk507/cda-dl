@@ -10,7 +10,7 @@ clean-cache:
 	\) -prune -exec rm -rf {} \;
 
 clean-build:
-	rm -rf build cda_dl.egg-info
+	rm -rf build cda_dl.egg-info dist
 
 clean: clean-test clean-cache clean-build
 
