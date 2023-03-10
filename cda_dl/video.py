@@ -92,11 +92,11 @@ class Video:
         """Initialize members required to download the Video."""
         self.video_id = self.get_videoid()
         self.video_soup = await self.get_video_soup()
+        self.check_geolocation()
         self.title = self.get_video_title()
         self.filepath = self.get_filepath(download_options)
         self.partial_filepath = self.get_partial_filepath()
         self.check_premium()
-        self.check_geolocation()
         self.video_info = await self.get_video_info()
         self.resolutions = self.get_resolutions()
         self.resolution = self.get_adjusted_resolution(download_options)
@@ -134,9 +134,9 @@ class Video:
         return self.filepath.parent / f"{self.filepath.name}.part"
 
     def check_premium(self) -> None:
-        if re.search(
-            "Ten film jest dostępny dla użytkowników premium",
-            self.video_soup.text,
+        if (
+            "Ten film jest dostępny dla użytkowników premium"
+            in self.video_soup.text
         ):
             raise LoginRequiredError(
                 f"{self.title} jest dostępny tylko dla użytkowników premium."

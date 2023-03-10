@@ -47,6 +47,14 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="Wyświetlaj tylko błędy i ostrzeżenia",
     )
     parser.add_argument(
+        "-l",
+        "--login",
+        metavar="USER",
+        dest="login",
+        type=str,
+        help="Zaloguj się do konta",
+    )
+    parser.add_argument(
         "-d",
         "--directory",
         metavar="PATH",
@@ -106,4 +114,5 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
+# TODO: add support for list of http(s) proxies?
 # TODO: maybe support for premium videos on login?

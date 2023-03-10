@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 import sys
+from getpass import getpass
 from os import path
 from pathlib import Path
 
@@ -13,10 +14,17 @@ from rich.table import Table
 
 from cda_dl.download_options import DownloadOptions
 from cda_dl.download_state import DownloadState
-from cda_dl.error import FlagError, HTTPError, ParserError, ResolutionError
+from cda_dl.error import (
+    CaptchaError,
+    FlagError,
+    HTTPError,
+    LoginError,
+    ParserError,
+    ResolutionError,
+)
 from cda_dl.folder import Folder
 from cda_dl.ui import RichUI
-from cda_dl.utils import clear, is_folder, is_video
+from cda_dl.utils import clear, get_random_agent, is_folder, is_video
 from cda_dl.video import Video
 
 logging.basicConfig(
@@ -29,6 +37,8 @@ LOGGER = logging.getLogger(__name__)
 
 class Downloader:
     urls: list[str]
+    login: str | None
+    password: str | None
     list_resolutions: bool
     download_options: DownloadOptions
     download_state: DownloadState
@@ -38,6 +48,9 @@ class Downloader:
 
     def __init__(self, args: argparse.Namespace) -> None:
         self.urls = [url.strip() for url in args.urls]
+        self.login, self.password = args.login, None
+        if self.login is not None:
+            self.password = getpass(f"Podaj hasło dla {self.login}: ")
         self.list_resolutions = args.list_resolutions
         self.download_options = DownloadOptions(
             Path(
@@ -55,11 +68,13 @@ class Downloader:
     async def main(self) -> None:
         async with aiohttp.ClientSession() as session:
             try:
+                if self.login is not None and self.password is not None:
+                    await self.perform_login(session)
                 if self.list_resolutions:
                     await self.list_resolutions_and_exit(session)
                 await self.check_valid_resolution(session)
                 self.set_threads()
-            except (FlagError, ResolutionError) as e:
+            except (FlagError, ResolutionError, LoginError, CaptchaError) as e:
                 LOGGER.error(e)
             else:
                 self.video_urls, self.folder_urls = self.get_urls()
@@ -78,6 +93,25 @@ class Downloader:
                     f" {self.download_state.failed}[/] |\n"
                 )
                 console.print("Skończono pobieranie. Enjoy :)")
+
+    # TODO: save session cookie to a file in cwd to avoid logging in every
+    # time and captcha
+    async def perform_login(self, session: aiohttp.ClientSession) -> None:
+        """Log in to the session object."""
+        data = {"username": self.login, "password": self.password}
+        headers = {"User-Agent": get_random_agent()}
+        try:
+            r = await session.post(
+                "https://www.cda.pl/login", headers=headers, data=data
+            )
+            r.raise_for_status()
+        except aiohttp.ClientResponseError as e:
+            raise LoginError(
+                f"Nie udało się zalogować [{e.status}]: {e.message}."
+            )
+        text = await r.text()
+        if 'Zaznacz pole "Nie jestem robotem"!' in text:
+            raise CaptchaError("Nie udało się zalogować z powodu captchy.")
 
     async def list_resolutions_and_exit(
         self, session: aiohttp.ClientSession

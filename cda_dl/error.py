@@ -20,3 +20,11 @@ class LoginRequiredError(Exception):
 
 class HTTPError(Exception):
     pass
+
+
+class LoginError(Exception):
+    pass
+
+
+class CaptchaError(Exception):
+    pass

@@ -1,4 +1,3 @@
-.wdm/
 __pycache__/
 *.mp4
 *.part
@@ -7,3 +6,8 @@ venv/
 *.egg-info/
 build/
 playground.py
+
+# temp
+out.txt
+out2.txt
+wikipedia_test.py
