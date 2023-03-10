@@ -101,6 +101,8 @@ class Downloader:
         data = {"username": self.login, "password": self.password}
         headers = {"User-Agent": get_random_agent()}
         try:
+            # TODO: if login failed status code is still 200, check for it 
+            # manually
             r = await session.post(
                 "https://www.cda.pl/login", headers=headers, data=data
             )
