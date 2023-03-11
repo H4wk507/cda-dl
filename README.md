@@ -37,6 +37,7 @@ options:
   -h, --help            Wyświetl tę pomoc i wyjdź
   --version             Wyświetl wersję programu
   -q, --quiet           Wyświetlaj tylko błędy i ostrzeżenia
+  -l, --login USER      Zaloguj się do konta
   -d, --directory PATH  Ustaw docelowy katalog (domyślnie '.')
   -R, --resolutions     Wyświetl dostępne rozdzielczości (dla filmu)
   -r, --resolution RES  Pobierz film w podanej rozdzielczości (domyślnie

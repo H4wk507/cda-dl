@@ -5,6 +5,7 @@ venv/
 *.swp
 *.egg-info/
 build/
+dist/
 playground.py
 
 # temp

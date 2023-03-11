@@ -94,15 +94,11 @@ class Downloader:
                 )
                 console.print("Skończono pobieranie. Enjoy :)")
 
-    # TODO: save session cookie to a file in cwd to avoid logging in every
-    # time and captcha
     async def perform_login(self, session: aiohttp.ClientSession) -> None:
         """Log in to the session object."""
         data = {"username": self.login, "password": self.password}
         headers = {"User-Agent": get_random_agent()}
         try:
-            # TODO: if login failed status code is still 200, check for it 
-            # manually
             r = await session.post(
                 "https://www.cda.pl/login", headers=headers, data=data
             )
@@ -114,6 +110,10 @@ class Downloader:
         text = await r.text()
         if 'Zaznacz pole "Nie jestem robotem"!' in text:
             raise CaptchaError("Nie udało się zalogować z powodu captchy.")
+        elif "Zły login lub hasło!" in text:
+            raise LoginError(
+                "Nie udało się zalogować z powodu błędnego loginu lub hasła."
+            )
 
     async def list_resolutions_and_exit(
         self, session: aiohttp.ClientSession
