@@ -130,7 +130,9 @@ async def get_request(
         response = await session.get(url, headers=headers)
         response.raise_for_status()
     except aiohttp.ClientResponseError as e:
-        raise HTTPError(f"HTTP error [{e.status}]: {e.message}. Pomijam ...")
+        raise HTTPError(
+            f"HTTP error [{e.status}]: {e.message}. Pomijam ...", e.status
+        )
     else:
         return response
 

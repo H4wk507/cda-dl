@@ -7,6 +7,7 @@ venv/
 build/
 dist/
 playground.py
+todo
 
 # temp
 out.txt
