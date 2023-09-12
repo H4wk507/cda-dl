@@ -67,6 +67,10 @@ class Video:
         LOGGER.level = (
             logging.WARNING if download_options.quiet else logging.INFO
         )
+        if self.filepath.exists() and not download_options.overwrite:
+            LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
+            download_state.skipped += 1
+            return
         try:
             await self.initialize(download_options)
         except (
@@ -79,14 +83,8 @@ class Video:
             LOGGER.warning(e)
             download_state.failed += 1
         else:
-            if self.filepath.exists() and not download_options.overwrite:
-                LOGGER.info(
-                    f"Plik '{self.title}.mp4' już istnieje. Pomijam ..."
-                )
-                download_state.skipped += 1
-            else:
-                self.make_directory(download_options)
-                await self.stream_file(download_state)
+            self.make_directory(download_options)
+            await self.stream_file(download_state)
 
     async def initialize(self, download_options: DownloadOptions) -> None:
         """Initialize members required to download the Video."""
