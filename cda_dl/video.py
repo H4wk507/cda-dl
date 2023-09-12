@@ -67,6 +67,7 @@ class Video:
         LOGGER.level = (
             logging.WARNING if download_options.quiet else logging.INFO
         )
+        await self.pre_initialize(download_options)
         if self.filepath.exists() and not download_options.overwrite:
             LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
             download_state.skipped += 1
@@ -86,13 +87,16 @@ class Video:
             self.make_directory(download_options)
             await self.stream_file(download_state)
 
+    async def pre_initialize(self, download_options: DownloadOptions) -> None:
+        """Initialize members required to get Video info."""
+        self.video_soup = await self.get_video_soup()
+        self.title = self.get_video_title()
+        self.filepath = self.get_filepath(download_options)
+
     async def initialize(self, download_options: DownloadOptions) -> None:
         """Initialize members required to download the Video."""
         self.video_id = self.get_videoid()
-        self.video_soup = await self.get_video_soup()
         self.check_geolocation()
-        self.title = self.get_video_title()
-        self.filepath = self.get_filepath(download_options)
         self.partial_filepath = self.get_partial_filepath()
         self.check_premium()
         self.video_info = await self.get_video_info()
