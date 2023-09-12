@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import re
@@ -67,12 +68,14 @@ class Video:
         LOGGER.level = (
             logging.WARNING if download_options.quiet else logging.INFO
         )
-        await self.pre_initialize(download_options)
-        if self.filepath.exists() and not download_options.overwrite:
-            LOGGER.info(f"Plik '{self.title}.mp4' już istnieje. Pomijam ...")
-            download_state.skipped += 1
-            return
         try:
+            await self.pre_initialize(download_options)
+            if self.filepath.exists() and not download_options.overwrite:
+                LOGGER.info(
+                    f"Plik '{self.title}.mp4' już istnieje. Pomijam ..."
+                )
+                download_state.skipped += 1
+                return
             await self.initialize(download_options)
         except (
             LoginRequiredError,
@@ -81,8 +84,13 @@ class Video:
             ParserError,
             HTTPError,
         ) as e:
-            LOGGER.warning(e)
-            download_state.failed += 1
+            if isinstance(e, HTTPError) and e.status_code == 429:
+                LOGGER.warning("Zbyt dużo zapytań. Usypiam wątek na 10 min.")
+                await asyncio.sleep(60 * 10)
+                await self.download_video(download_options, download_state)
+            else:
+                LOGGER.warning(e)
+                download_state.failed += 1
         else:
             self.make_directory(download_options)
             await self.stream_file(download_state)
