@@ -13,7 +13,22 @@ print_help() {
     echo "  --major         Bump major version"
 }
 
+bump_patch() {
+    echo "$1" | awk -F. '{print $1"."$2"."$3+1}'
+}
+
+bump_minor() {
+    echo "$1" | awk -F. '{print $1"."$2+1".0"}'
+}
+
+bump_major() {
+    echo "$1" | awk -F. '{print $1+1".0.0"}'
+}
+
 [ "$#" -eq 0 ] && print_help && exit 0
+
+version_file_path="$(git ls-files | grep version.py)"
+version="$(cat "$version_file_path" | awk -F= '{print $2}' | tr -d ' "')"
 
 latest_release="$(gh release view --json tagName | jq -r .tagName)"
 
@@ -24,13 +39,16 @@ for arg in "$@"; do
             exit 0
             ;;
         --patch)
-            new_release="$(echo "$latest_release" | awk -F. '{print $1"."$2"."$3+1}')"
+            new_release="$(bump_patch "$latest_release")"
+            new_version="$(bump_patch "$version")"
             ;;
         --minor)
-            new_release="$(echo "$latest_release" | awk -F. '{print $1"."$2+1".0"}')"
+            new_release="$(bump_minor "$latest_release")"
+            new_version="$(bump_minor "$version")"
             ;;
         --major)
-            new_release="$(echo "$latest_release" | awk -F. '{print $1+1".0.0"}')"
+            new_release="$(bump_major "$latest_release")"
+            new_version="$(bump_major "$version")"
             ;;
         *)
             echo "Unknown option: $arg"
@@ -40,5 +58,7 @@ for arg in "$@"; do
     esac
 done
 
+echo "__version__ = '${new_version}'" > "$version_file_path"
+git add . && git commit -m "Bump version to ${new_version}" && git push origin main
 gh create release --generate-notes "$new_release"
 exit 0
