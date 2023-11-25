@@ -28,7 +28,7 @@ bump_major() {
 [ "$#" -eq 0 ] && print_help && exit 0
 
 version_file_path="$(git ls-files | grep version.py)"
-version="$(cat "$version_file_path" | awk -F= '{print $2}' | tr -d ' "')"
+version="$(cat "$version_file_path" | awk -F= '{print $2}' | tr -d " '")"
 
 latest_release="$(gh release view --json tagName | jq -r .tagName)"
 
