@@ -4,8 +4,9 @@ import sys
 from typing import Sequence
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from importlib.metadata import version
+
 from cda_dl.downloader import Downloader
-from cda_dl.version import __version__
 
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -37,7 +38,7 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {__version__}",
+        version=f"{parser.prog} {version(parser.prog)}",
         help="Wyświetl wersję programu",
     )
     parser.add_argument(
