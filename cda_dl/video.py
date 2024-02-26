@@ -27,6 +27,7 @@ from cda_dl.utils import (
     get_request,
     get_safe_title,
     get_video_match,
+    post_request,
 )
 
 logging.basicConfig(
@@ -39,7 +40,7 @@ LOGGER = logging.getLogger(__name__)
 
 class Video:
     video_id: str
-    resolutions: list[str]
+    resolutions: dict[str, str]
     video_soup: BeautifulSoup
     video_info: Any
     resolution: str
@@ -111,7 +112,26 @@ class Video:
         self.resolutions = self.get_resolutions()
         self.resolution = self.get_adjusted_resolution(download_options)
         self.raise_invalid_res()
-        self.file = self.get_file()
+        cda_res = self.resolutions[self.resolution]
+        resp = await post_request(
+            self.url,
+            self.session,
+            {
+                "id": 3,
+                "jsonrpc": "2.0",
+                "method": "videoGetLink",
+                "params": [
+                    self.video_id,
+                    cda_res,
+                    self.video_info["ts"],
+                    self.video_info["hash2"],
+                    {},
+                ],
+            },
+            self.headers,
+        )
+        data = await resp.json()
+        self.file = data["result"]["resp"]
         self.resume_point = self.get_resume_point()
         self.video_stream = await self.get_video_stream()
         self.remaining_size = self.get_remaining_size()
@@ -175,9 +195,9 @@ class Video:
         player_data = json.loads(media_player.attrs["player_data"])
         return player_data["video"]
 
-    def get_resolutions(self) -> list[str]:
+    def get_resolutions(self) -> dict[str, str]:
         """Get available Video resolutions at the url."""
-        return list(self.video_info["qualities"])
+        return self.video_info["qualities"]  # type: ignore
 
     async def list_resolutions(self) -> None:
         self.video_id = self.get_videoid()
@@ -201,7 +221,7 @@ class Video:
 
     def get_best_resolution(self) -> str:
         """Get best Video resolution available at the url."""
-        return self.resolutions[-1]
+        return f"{max(int(k[:-1]) for k in self.resolutions.keys())}p"
 
     def is_valid_resolution(self) -> bool:
         return self.resolution in self.resolutions
