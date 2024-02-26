@@ -2,6 +2,7 @@ import os
 import random
 import re
 import urllib.parse
+from typing import Any
 
 import aiohttp
 from tenacity import (
@@ -128,6 +129,31 @@ async def get_request(
     headers["User-Agent"] = get_random_agent()
     try:
         response = await session.get(url, headers=headers)
+        response.raise_for_status()
+    except aiohttp.ClientResponseError as e:
+        raise HTTPError(
+            f"HTTP error [{e.status}]: {e.message}. Pomijam ...", e.status
+        )
+    else:
+        return response
+
+
+@retry(
+    retry=retry_if_exception_type(HTTPError),
+    wait=wait_fixed(1),
+    stop=(stop_after_attempt(3) | stop_after_delay(5)),
+    reraise=True,
+)
+async def post_request(
+    url: str,
+    session: aiohttp.ClientSession,
+    json: dict[str, Any],
+    headers: dict[str, str],
+) -> aiohttp.ClientResponse:
+    """Get request with random user agent."""
+    headers["User-Agent"] = get_random_agent()
+    try:
+        response = await session.post(url, json=json, headers=headers)
         response.raise_for_status()
     except aiohttp.ClientResponseError as e:
         raise HTTPError(

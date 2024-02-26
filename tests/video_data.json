@@ -3,25 +3,25 @@
     {
       "url": "https://www.cda.pl/video/9122600a",
       "videoid": "9122600a",
-      "resolutions": ["480p"],
+      "resolutions": { "480p": "lq" },
       "adjusted_resolution": "480p",
-      "invalid_resolutions": ["360p", "720p"],
+      "invalid_resolutions": { "360p": "vl", "720p": "sd" },
       "title": "Pokemon_Indigo_League_01_Pokemon_wybieram_cię"
     },
     {
       "url": "https://www.cda.pl/video/546614af/",
       "videoid": "546614af",
-      "resolutions": ["360p", "480p", "720p"],
+      "resolutions": { "360p": "vl", "480p": "lq", "720p": "sd" },
       "adjusted_resolution": "720p",
-      "invalid_resolutions": ["144p", "1080p"],
+      "invalid_resolutions": { "1080p": "hd" },
       "title": "Pokemon_Indigo_League_02_Ostry_dyżur_Pokemon"
     },
     {
       "url": "https://www.cda.pl/video/11051590f8/vfilm",
       "videoid": "11051590f8",
-      "resolutions": [],
+      "resolutions": {},
       "adjusted_resolution": "",
-      "invalid_resolutions": [],
+      "invalid_resolutions": {},
       "title": "Nie_Wszyscy_Święci_2022_Lektor_PL"
     },
     {
@@ -29,23 +29,23 @@
       "videoid": "11051590f8",
       "resolutions": [],
       "adjusted_resolution": "",
-      "invalid_resolutions": [],
+      "invalid_resolutions": {},
       "title": "Nie_Wszyscy_Święci_2022_Lektor_PL"
     },
     {
       "url": "https://ebd.cda.pl/1920x1080/9122600a",
       "videoid": "9122600a",
-      "resolutions": ["480p"],
+      "resolutions": { "480p": "lq" },
       "adjusted_resolution": "480p",
-      "invalid_resolutions": ["360p", "720p"],
+      "invalid_resolutions": { "360p": "vl", "720p": "sd" },
       "title": "Pokemon_Indigo_League_01_Pokemon_wybieram_cię"
     },
     {
       "url": "https://ebd.cda.pl/1920x1080/9122600a/",
       "videoid": "9122600a",
-      "resolutions": ["480p"],
+      "resolutions": { "480p": "lq" },
       "adjusted_resolution": "480p",
-      "invalid_resolutions": ["360p", "720p"],
+      "invalid_resolutions": { "360p": "vl", "720p": "sd" },
       "title": "Pokemon_Indigo_League_01_Pokemon_wybieram_cię"
     }
   ]
