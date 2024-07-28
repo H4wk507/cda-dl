@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import aiofiles
+from aiofiles import os
 import aiohttp
 from bs4 import BeautifulSoup
 from bs4.element import Tag
@@ -278,12 +279,23 @@ class Video:
             total=self.resume_point + self.remaining_size,
             completed=self.resume_point,
         )
-        async with aiofiles.open(self.partial_filepath, "ab") as f:
-            async for chunk in self.video_stream.content.iter_chunked(
-                block_size * block_size
-            ):
-                await f.write(chunk)
-                self.ui.progbar_video.update(task_id, advance=len(chunk))
-        self.partial_filepath.rename(self.filepath)
+        try:
+            async with aiofiles.open(self.partial_filepath, "ab") as f:
+                async for chunk in self.video_stream.content.iter_chunked(block_size * block_size):
+                    await f.write(chunk)
+                    self.ui.progbar_video.update(task_id, advance=len(chunk))
+        except asyncio.TimeoutError as e:
+            LOGGER.warning(f"Nie udało się pobrać {self.title} - Przekroczono czas Asyncio")
+            download_state.failed += 1
+            if await os.path.exists(self.partial_filepath):
+                await os.remove(self.partial_filepath)
+        except Exception as e:
+            LOGGER.warning(f"Nie udało się pobrać {self.title} - Wystąpił nieznany błąd ({str(e)})")
+            download_state.failed += 1
+            if await os.path.exists(self.partial_filepath):
+                await os.remove(self.partial_filepath)
+        else:
+            download_state.completed += 1
+            self.partial_filepath.rename(self.filepath)
+
         self.ui.progbar_video.remove_task(task_id)
-        download_state.completed += 1
