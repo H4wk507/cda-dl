@@ -221,7 +221,17 @@ class Video:
 
     def get_best_resolution(self) -> str:
         """Get best Video resolution available at the url."""
-        return f"{max(int(k[:-1]) for k in self.resolutions.keys())}p"
+        numeric_resolutions = []
+        for k in self.resolutions.keys():
+            # Skip non-numeric resolution keys like 'aut'
+            if k.endswith('p') and k[:-1].isdigit():
+                numeric_resolutions.append(int(k[:-1]))
+        
+        if not numeric_resolutions:
+            # If no numeric resolutions found, return the first available resolution
+            return list(self.resolutions.keys())[0]
+            
+        return f"{max(numeric_resolutions)}p"
 
     def is_valid_resolution(self) -> bool:
         return self.resolution in self.resolutions
