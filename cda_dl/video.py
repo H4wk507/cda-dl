@@ -133,30 +133,52 @@ class Video:
         return video_url, audio_url
 
     def get_dash_video_filepath(self) -> Path:
-        return self.filepath.parent / f"{self.filepath.stem}.video.mp4"
+        return self.filepath.parent / f"{self.filepath.stem}.video.mp4.part"
 
     def get_dash_audio_filepath(self) -> Path:
-        return self.filepath.parent / f"{self.filepath.stem}.audio.mp4"
+        return self.filepath.parent / f"{self.filepath.stem}.audio.mp4.part"
 
     async def download_url_to_file(
         self, url: str, path: Path, desc: str
     ) -> None:
-        response = await get_request(url, self.session, {})
-        total = int(response.headers.get("content-length", 0))
+        resume_point = path.stat().st_size if path.exists() else 0
+        headers: dict[str, str] = {}
+
+        if resume_point > 0:
+            headers["Range"] = f"bytes={resume_point}-"
+
+        response = await get_request(url, self.session, headers)
+
+        if resume_point > 0 and response.status != 206:
+            LOGGER.warning(
+                f"Serwer nie wznowił pobierania dla '{desc}', zaczynam od zera."
+            )
+            resume_point = 0
+            path.unlink(missing_ok=True)
+            response = await get_request(url, self.session, {})
+
+        content_length = int(response.headers.get("content-length", 0))
+        total = resume_point + content_length if content_length > 0 else None
 
         assert self.ui.progbar_video
         task_id = self.ui.progbar_video.add_task(
             "download",
             filename=desc,
-            total=total if total > 0 else None,
+            total=total,
+            completed=resume_point,
         )
 
-        async with aiofiles.open(path, "wb") as f:
-            async for chunk in response.content.iter_chunked(1024 * 1024):
-                await f.write(chunk)
-                self.ui.progbar_video.update(task_id, advance=len(chunk))
-
-        self.ui.progbar_video.remove_task(task_id)
+        try:
+            async with aiofiles.open(path, "ab" if resume_point > 0 else "wb") as f:
+                async for chunk in response.content.iter_chunked(1024 * 1024):
+                    await f.write(chunk)
+                    self.ui.progbar_video.update(task_id, advance=len(chunk))
+        except asyncio.TimeoutError:
+            raise ParserError(
+                f"Timeout podczas pobierania '{desc}'. "
+            )
+        finally:
+            self.ui.progbar_video.remove_task(task_id)
 
     async def merge_dash_streams(
         self, video_path: Path, audio_path: Path, output_path: Path
@@ -191,8 +213,6 @@ class Video:
         audio_tmp = self.get_dash_audio_filepath()
 
         self.filepath.unlink(missing_ok=True)
-        video_tmp.unlink(missing_ok=True)
-        audio_tmp.unlink(missing_ok=True)
 
         try:
             await self.download_url_to_file(
@@ -207,8 +227,9 @@ class Video:
             )
             await self.merge_dash_streams(video_tmp, audio_tmp, self.filepath)
         finally:
-            video_tmp.unlink(missing_ok=True)
-            audio_tmp.unlink(missing_ok=True)
+            if self.filepath.exists():
+                video_tmp.unlink(missing_ok=True)
+                audio_tmp.unlink(missing_ok=True)
 
         download_state.completed += 1
 
@@ -449,6 +470,7 @@ class Video:
         block_size = 1024
         desc = f"{self.title}.mp4 [{self.resolution}]"
         self.filepath.unlink(missing_ok=True)
+
         assert self.ui.progbar_video
         task_id = self.ui.progbar_video.add_task(
             "download",
@@ -456,12 +478,20 @@ class Video:
             total=self.resume_point + self.remaining_size,
             completed=self.resume_point,
         )
-        async with aiofiles.open(self.partial_filepath, "ab") as f:
-            async for chunk in self.video_stream.content.iter_chunked(
-                block_size * block_size
-            ):
-                await f.write(chunk)
-                self.ui.progbar_video.update(task_id, advance=len(chunk))
+
+        try:
+            async with aiofiles.open(self.partial_filepath, "ab") as f:
+                async for chunk in self.video_stream.content.iter_chunked(
+                    block_size * block_size
+                ):
+                    await f.write(chunk)
+                    self.ui.progbar_video.update(task_id, advance=len(chunk))
+        except asyncio.TimeoutError:
+            raise ParserError(
+                f"Timeout podczas pobierania '{desc}'. "
+            )
+        finally:
+            self.ui.progbar_video.remove_task(task_id)
+
         self.partial_filepath.rename(self.filepath)
-        self.ui.progbar_video.remove_task(task_id)
         download_state.completed += 1
