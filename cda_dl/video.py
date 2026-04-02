@@ -254,13 +254,17 @@ class Video:
             ResolutionError,
             ParserError,
             HTTPError,
+            asyncio.TimeoutError,
+            aiohttp.ClientError,
         ) as e:
             if isinstance(e, HTTPError) and e.status_code == 429:
                 LOGGER.warning("Zbyt dużo zapytań. Usypiam wątek na 10 min.")
                 await asyncio.sleep(60 * 10)
                 await self.download_video(download_options, download_state)
             else:
-                LOGGER.warning(e)
+                message = f"[{self.url}] {type(e).__name__}: {e}"
+                LOGGER.warning(message)
+                download_state.errors.append(message)
                 download_state.failed += 1
         else:
             self.make_directory(download_options)
@@ -332,17 +336,70 @@ class Video:
     async def get_video_soup(self) -> BeautifulSoup:
         response = await get_request(self.url, self.session, self.headers)
         text = await response.text()
+
+        if self.requires_adult_confirmation(text) and not self.has_media_player(text):
+            LOGGER.warning(
+                f"Wykryto bramkę 18+ dla {self.url}, wysyłam potwierdzenie wieku"
+            )
+
+            self.session.cookie_jar.update_cookies(
+                {"adult": "1"},
+                response.url,
+            )
+
+            post_response = await self.session.post(
+                self.url,
+                data={"age_confirm": "1"},
+                headers={"User-Agent": self.headers.get("User-Agent", "")},
+            )
+            post_response.raise_for_status()
+            text = await post_response.text()
+
+            if not self.has_media_player(text):
+                response = await get_request(self.url, self.session, self.headers)
+                text = await response.text()
+
+            if not self.has_media_player(text):
+                raise ParserError(
+                    f"Nie udało się przejść bramki 18+ dla {self.url} - nadal brak media playera."
+                )
+
         return BeautifulSoup(text, "html.parser")
+
+    def has_media_player(self, html: str) -> bool:
+        video_id = self.get_videoid()
+        return f'id="mediaplayer{video_id}"' in html
+
+    def requires_adult_confirmation(self, html: str) -> bool:
+        return (
+            'class="boxAdult"' in html
+            or 'name="age_confirm"' in html
+            or "Materiał przeznaczony dla osób pełnoletnich" in html
+        )
 
     def get_video_title(self) -> str:
         title_tag = self.video_soup.find("h1")
-        if not isinstance(title_tag, Tag):
-            raise ParserError(
-                "Error podczas parsowania 'video title' dla"
-                f" {self.url} Pomijam ..."
-            )
-        title = title_tag.text.strip("\n")
-        return get_safe_title(title)
+        if isinstance(title_tag, Tag):
+            title = title_tag.get_text(strip=True)
+            if title:
+                return get_safe_title(title)
+
+        meta_og = self.video_soup.find("meta", attrs={"property": "og:title"})
+        if isinstance(meta_og, Tag):
+            content = meta_og.get("content")
+            if isinstance(content, str) and content.strip():
+                return get_safe_title(content.strip())
+
+        page_title = self.video_soup.find("title")
+        if isinstance(page_title, Tag):
+            title = page_title.get_text(strip=True)
+            if title:
+                return get_safe_title(title)
+
+        raise ParserError(
+            f"Error podczas parsowania 'video title' dla {self.url}. "
+            "Brak <h1>, og:title i <title>. Pomijam ..."
+        )
 
     def get_filepath(self, download_options: DownloadOptions) -> Path:
         return Path(download_options.directory, f"{self.title}.mp4")
