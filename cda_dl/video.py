@@ -5,6 +5,9 @@ import re
 from pathlib import Path
 from typing import Any
 
+import shutil
+from urllib.parse import urljoin
+
 import aiofiles
 import aiohttp
 from bs4 import BeautifulSoup
@@ -51,6 +54,9 @@ class Video:
     filepath: Path
     partial_filepath: Path
     resume_point: int
+    is_dash: bool
+    dash_video_url: str
+    dash_audio_url: str
 
     def __init__(
         self, url: str, session: aiohttp.ClientSession, ui: RichUI
@@ -62,6 +68,149 @@ class Video:
             "Content-Type": "application/json",
             "X-Requested-With": "XMLHttpRequest",
         }
+        self.is_dash = False
+        self.dash_video_url = ""
+        self.dash_audio_url = ""
+
+    def is_mpd_url(self, url: str) -> bool:
+        return url.lower().endswith(".mpd")
+
+    async def initialize_dash(self) -> None:
+        response = await get_request(self.file, self.session, {})
+        mpd_text = await response.text()
+        self.dash_video_url, self.dash_audio_url = self.parse_mpd(
+            mpd_text, self.file
+        )
+
+    def parse_mpd(self, mpd_text: str, mpd_url: str) -> tuple[str, str]:
+        soup = BeautifulSoup(mpd_text, "xml")
+
+        video_url = None
+        audio_url = None
+
+        for adaptation_set in soup.find_all("AdaptationSet"):
+            content_type = adaptation_set.get("contentType")
+
+            if content_type == "video":
+                matched_representation = None
+
+                for representation in adaptation_set.find_all("Representation"):
+                    height = representation.get("height")
+                    if height and self.resolution == f"{height}p":
+                        matched_representation = representation
+                        break
+
+                if matched_representation is None:
+                    representations = adaptation_set.find_all("Representation")
+                    if not representations:
+                        continue
+                    matched_representation = max(
+                        representations,
+                        key=lambda rep: int(rep.get("height", "0")),
+                    )
+
+                base_url = matched_representation.find("BaseURL")
+                if base_url and base_url.text:
+                    video_url = urljoin(mpd_url, base_url.text.strip())
+
+            elif content_type == "audio":
+                representation = adaptation_set.find("Representation")
+                if representation:
+                    base_url = representation.find("BaseURL")
+                    if base_url and base_url.text:
+                        audio_url = urljoin(mpd_url, base_url.text.strip())
+
+        if not video_url:
+            raise ParserError(
+                f"Nie udało się znaleźć strumienia video w MPD dla {self.url}"
+            )
+
+        if not audio_url:
+            raise ParserError(
+                f"Nie udało się znaleźć strumienia audio w MPD dla {self.url}"
+            )
+
+        return video_url, audio_url
+
+    def get_dash_video_filepath(self) -> Path:
+        return self.filepath.parent / f"{self.filepath.stem}.video.mp4"
+
+    def get_dash_audio_filepath(self) -> Path:
+        return self.filepath.parent / f"{self.filepath.stem}.audio.mp4"
+
+    async def download_url_to_file(
+        self, url: str, path: Path, desc: str
+    ) -> None:
+        response = await get_request(url, self.session, {})
+        total = int(response.headers.get("content-length", 0))
+
+        assert self.ui.progbar_video
+        task_id = self.ui.progbar_video.add_task(
+            "download",
+            filename=desc,
+            total=total if total > 0 else None,
+        )
+
+        async with aiofiles.open(path, "wb") as f:
+            async for chunk in response.content.iter_chunked(1024 * 1024):
+                await f.write(chunk)
+                self.ui.progbar_video.update(task_id, advance=len(chunk))
+
+        self.ui.progbar_video.remove_task(task_id)
+
+    async def merge_dash_streams(
+        self, video_path: Path, audio_path: Path, output_path: Path
+    ) -> None:
+        if shutil.which("ffmpeg") is None:
+            raise ParserError(
+                "Wykryto materiał MPEG-DASH, ale ffmpeg nie jest zainstalowany."
+            )
+
+        process = await asyncio.create_subprocess_exec(
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(video_path),
+            "-i",
+            str(audio_path),
+            "-c",
+            "copy",
+            str(output_path),
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        return_code = await process.wait()
+
+        if return_code != 0:
+            raise ParserError(
+                f"ffmpeg nie zdołał scalić audio i video dla {self.url}"
+            )
+
+    async def download_dash(self, download_state: DownloadState) -> None:
+        video_tmp = self.get_dash_video_filepath()
+        audio_tmp = self.get_dash_audio_filepath()
+
+        self.filepath.unlink(missing_ok=True)
+        video_tmp.unlink(missing_ok=True)
+        audio_tmp.unlink(missing_ok=True)
+
+        try:
+            await self.download_url_to_file(
+                self.dash_video_url,
+                video_tmp,
+                f"{self.title}.video.mp4 [{self.resolution}]",
+            )
+            await self.download_url_to_file(
+                self.dash_audio_url,
+                audio_tmp,
+                f"{self.title}.audio.mp4 [{self.resolution}]",
+            )
+            await self.merge_dash_streams(video_tmp, audio_tmp, self.filepath)
+        finally:
+            video_tmp.unlink(missing_ok=True)
+            audio_tmp.unlink(missing_ok=True)
+
+        download_state.completed += 1
 
     async def download_video(
         self, download_options: DownloadOptions, download_state: DownloadState
@@ -94,7 +243,10 @@ class Video:
                 download_state.failed += 1
         else:
             self.make_directory(download_options)
-            await self.stream_file(download_state)
+            if self.is_dash:
+                await self.download_dash(download_state)
+            else:
+                await self.stream_file(download_state)
 
     async def pre_initialize(self, download_options: DownloadOptions) -> None:
         """Initialize members required to get Video info."""
@@ -131,10 +283,24 @@ class Video:
             self.headers,
         )
         data = await resp.json()
-        self.file = data["result"]["resp"]
+        file_resp = data.get("result", {}).get("resp")
+
+        if not isinstance(file_resp, str) or not file_resp.startswith(("http://", "https://")):
+            raise ParserError(
+                f"CDA nie zwróciło poprawnego linku do pliku dla {self.url}. "
+                f"Odpowiedź API: {file_resp!r}"
+            )
+
+        self.file = file_resp
         self.resume_point = self.get_resume_point()
-        self.video_stream = await self.get_video_stream()
-        self.remaining_size = self.get_remaining_size()
+
+        if self.is_mpd_url(self.file):
+            self.is_dash = True
+            await self.initialize_dash()
+        else:
+            self.video_stream = await self.get_video_stream()
+            self.remaining_size = self.get_remaining_size()
+
 
     def get_videoid(self) -> str:
         """Get videoid from Video url."""
@@ -265,9 +431,11 @@ class Video:
         )
 
     async def get_video_stream(self) -> aiohttp.ClientResponse:
-        range_num = f"bytes={self.resume_point}-"
-        self.headers["Range"] = range_num
-        video_stream = await get_request(self.file, self.session, self.headers)
+        if not isinstance(self.file, str) or not self.file.startswith(("http://", "https://")):
+            raise ParserError(f"Nieprawidłowy URL strumienia: {self.file!r}")
+
+        headers = {"Range": f"bytes={self.resume_point}-"}
+        video_stream = await get_request(self.file, self.session, headers)
         return video_stream
 
     def get_remaining_size(self) -> int:
