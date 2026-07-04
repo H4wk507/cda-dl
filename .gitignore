@@ -6,10 +6,3 @@ venv/
 *.egg-info/
 build/
 dist/
-playground.py
-todo
-
-# temp
-out.txt
-out2.txt
-wikipedia_test.py
