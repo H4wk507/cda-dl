@@ -51,6 +51,8 @@ class Downloader:
         self.login, self.password = args.login, None
         if self.login is not None:
             self.password = getpass(f"Podaj hasło dla {self.login}: ")
+            self.captcha = getpass(f"Podaj captche (po rozwiązaniu captchy wklej $('textarea#g-recaptcha-response').val() w konsoli i skopiuj wynik: \n")
+            
         self.list_resolutions = args.list_resolutions
         self.download_options = DownloadOptions(
             Path(
@@ -96,7 +98,7 @@ class Downloader:
 
     async def perform_login(self, session: aiohttp.ClientSession) -> None:
         """Log in to the session object."""
-        data = {"username": self.login, "password": self.password}
+        data = {"username": self.login, "password": self.password, "g-recaptcha-response": self.captcha}
         headers = {"User-Agent": get_random_agent()}
         try:
             r = await session.post(
