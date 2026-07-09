@@ -3,3 +3,4 @@ class DownloadState:
         self.completed = 0
         self.skipped = 0
         self.failed = 0
+        self.errors: list[str] = []

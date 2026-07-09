@@ -92,6 +92,10 @@ class Downloader:
                     " - [red bold]Nieudane Pliki:"
                     f" {self.download_state.failed}[/] |\n"
                 )
+                if self.download_state.errors:
+                    console.print("[red bold]Szczegóły błędów:[/]")
+                    for error in self.download_state.errors:
+                        console.print(f"- {error}")
                 console.print("Skończono pobieranie. Enjoy :)")
 
     async def perform_login(self, session: aiohttp.ClientSession) -> None:
