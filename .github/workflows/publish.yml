@@ -1,17 +1,22 @@
-name: Publish to PyPI.org
+name: Publish to PyPI
+
 on:
   release:
     types: [published]
+
 jobs:
   pypi:
     runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: python3 setup.py sdist bdist_wheel
-      - name: Publish package
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: actions/setup-python@v5
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+          python-version: "3.11"
+      - run: python3 setup.py sdist bdist_wheel
+      - uses: pypa/gh-action-pypi-publish@release/v1
