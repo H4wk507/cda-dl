@@ -35,10 +35,13 @@ class Folder:
     def get_adjusted_url(self) -> str:
         """If the url has no page specified, add /1/ at the
         end of it, indicating that we start from the page 1."""
-        if not self.url.endswith("/"):
-            self.url += "/"
         match = get_folder_match(self.url)
-        return self.url if match and match.group(2) else self.url + "1/"
+        if match and match.group(2):
+            if not self.url.endswith("/"):
+                self.url += "/"
+            return self.url
+        base_url = match.group(1) if match else self.url.rstrip("/")
+        return base_url + "/1/"
 
     async def download_folder(
         self, download_options: DownloadOptions, download_state: DownloadState
@@ -159,6 +162,6 @@ class Folder:
         """Get next page of the folder."""
         match = get_folder_match(self.url)
         assert match
-        page_number = int(match.group(2))
+        page_number = int(match.group(2) or 1)
         stripped_url = match.group(1)
         return stripped_url + "/" + str(page_number + 1) + "/"
