@@ -4,6 +4,8 @@
 #
 # Requirements: github-cli, jq
 
+set -euo pipefail
+
 print_help() {
     echo "Usage: $0 [options]"
     echo "Options:"
